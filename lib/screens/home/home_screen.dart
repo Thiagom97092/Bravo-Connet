@@ -5,6 +5,7 @@ import '../../services/firestore_service.dart';
 import '../profile/profile_screen.dart';
 import '../feed_screen.dart';
 import '../create_post_screen.dart';
+import '../marketplace/marketplace_screen.dart'; // ✅ NUEVO
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,12 +28,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> loadUser() async {
-    var data = await _firestoreService.getUser(user!.uid);
+    try {
+      var data = await _firestoreService.getUser(user!.uid);
 
-    setState(() {
-      userData = data;
-      isLoading = false;
-    });
+      setState(() {
+        userData = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   void logout() async {
@@ -44,16 +51,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Inicio"),
+        title: const Text("Bravo Connet"),
         actions: [
           IconButton(onPressed: logout, icon: const Icon(Icons.logout)),
         ],
       ),
+
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : userData == null
           ? const Center(child: Text("Error cargando usuario"))
-          : Padding(
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
@@ -72,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 15),
 
                   Text(
-                    userData!['nombre'],
+                    userData!['nombre'] ?? "Usuario",
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -81,60 +89,88 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 30),
 
-                  // 🔥 BOTÓN PERFIL
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const ProfileScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text("Ir a Perfil"),
-                    ),
+                  // 🔥 BOTONES PRINCIPALES
+                  buildButton(
+                    text: "Ir a Perfil",
+                    icon: Icons.person,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(),
+                        ),
+                      );
+                    },
                   ),
 
-                  const SizedBox(height: 10),
-
-                  // 🔥 BOTÓN FEED (CORREGIDO)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const FeedScreen(), // ✅ YA FUNCIONA
-                          ),
-                        );
-                      },
-                      child: const Text("Ver publicaciones"),
-                    ),
+                  buildButton(
+                    text: "Ver publicaciones",
+                    icon: Icons.feed,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const FeedScreen()),
+                      );
+                    },
                   ),
 
-                  const SizedBox(height: 10),
+                  buildButton(
+                    text: "Crear publicación",
+                    icon: Icons.add_box,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CreatePostScreen(),
+                        ),
+                      );
+                    },
+                  ),
 
-                  // 🔥 BOTÓN CREAR POST
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CreatePostScreen(),
-                          ),
-                        );
-                      },
-                      child: const Text("Crear publicación"),
-                    ),
+                  // 🛒 NUEVO MÓDULO MARKETPLACE
+                  buildButton(
+                    text: "Marketplace",
+                    icon: Icons.store,
+                    color: Colors.green,
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const MarketplaceScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
             ),
+    );
+  }
+
+  // 🔧 BOTÓN REUTILIZABLE (UI PRO)
+  Widget buildButton({
+    required String text,
+    required IconData icon,
+    required VoidCallback onPressed,
+    Color color = Colors.blue,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            backgroundColor: color,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          icon: Icon(icon),
+          label: Text(text),
+          onPressed: onPressed,
+        ),
+      ),
     );
   }
 }
