@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/post_service.dart';
 import '../services/storage_service.dart';
+import '../services/firestore_service.dart'; // ✅ IMPORTANTE
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -20,6 +21,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   final PostService _postService = PostService();
   final StorageService _storageService = StorageService();
+  final FirestoreService _firestoreService = FirestoreService(); // ✅
 
   // 📸 SELECCIONAR IMAGEN
   Future<void> _pickImage() async {
@@ -40,7 +42,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     String imageUrl = '';
 
-    // 🔥 SUBIR IMAGEN SI EXISTE
+    // 🔥 SUBIR IMAGEN
     if (_imageFile != null) {
       imageUrl = await _storageService.uploadImage(
         _imageFile!,
@@ -48,12 +50,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       );
     }
 
+    // 🔥 OBTENER DATOS DEL USUARIO DESDE FIRESTORE (CORRECTO)
+    String nombre = 'Usuario';
+    String foto = '';
+
+    try {
+      final userData = await _firestoreService.getUser(user.uid);
+
+      if (userData != null) {
+        nombre = userData['nombre'] ?? 'Usuario';
+        foto = userData['foto'] ?? '';
+      } else {
+        print("⚠️ Usuario no encontrado en colección 'usuarios'");
+      }
+    } catch (e) {
+      print("Error obteniendo usuario: $e");
+    }
+
+    // 🔥 CREAR POST
     await _postService.createPost(
       uid: user.uid,
-      nombre: user.displayName ?? 'Usuario',
-      fotoUsuario: user.photoURL ?? '',
+      nombre: nombre,
+      fotoUsuario: foto,
       contenido: _contenidoController.text,
-      imagenPost: imageUrl, // 🔥 URL REAL
+      imagenPost: imageUrl,
     );
 
     Navigator.pop(context);
@@ -77,12 +97,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
             const SizedBox(height: 10),
 
-            // 🖼 PREVIEW
+            // 🖼 PREVIEW DE IMAGEN
             if (_imageFile != null) Image.file(_imageFile!, height: 150),
 
             const SizedBox(height: 10),
 
-            // 📸 BOTÓN IMAGEN
+            // 📸 BOTÓN SELECCIONAR IMAGEN
             ElevatedButton(
               onPressed: _pickImage,
               child: const Text("Seleccionar imagen"),
@@ -90,7 +110,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
             const SizedBox(height: 20),
 
-            // 🚀 PUBLICAR
+            // 🚀 BOTÓN PUBLICAR
             ElevatedButton(
               onPressed: _createPost,
               child: const Text("Publicar"),

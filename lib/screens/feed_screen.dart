@@ -50,22 +50,62 @@ class FeedScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 👤 USUARIO
+                      // 👤 USUARIO + 🗑 ELIMINAR
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          CircleAvatar(
-                            backgroundImage: data['fotoUsuario'] != ''
-                                ? NetworkImage(data['fotoUsuario'])
-                                : null,
-                            child: data['fotoUsuario'] == ''
-                                ? const Icon(Icons.person)
-                                : null,
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundImage: data['fotoUsuario'] != ''
+                                    ? NetworkImage(data['fotoUsuario'])
+                                    : null,
+                                child: data['fotoUsuario'] == ''
+                                    ? const Icon(Icons.person)
+                                    : null,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                userName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            userName,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+
+                          // 🔥 SOLO EL DUEÑO VE EL BOTÓN
+                          if (data['uid'] == currentUserId)
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () async {
+                                bool confirm = await showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text("Eliminar post"),
+                                    content: const Text(
+                                      "¿Seguro que deseas eliminar este post?",
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text("Cancelar"),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text("Eliminar"),
+                                      ),
+                                    ],
+                                  ),
+                                );
+
+                                if (confirm == true) {
+                                  await postService.deletePost(postId);
+                                }
+                              },
+                            ),
                         ],
                       ),
 
