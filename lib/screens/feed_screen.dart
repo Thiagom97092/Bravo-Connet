@@ -35,6 +35,11 @@ class FeedScreen extends StatelessWidget {
 
               String currentUserId = FirebaseAuth.instance.currentUser!.uid;
 
+              // ✅ VALIDACIÓN SEGURA
+              if (post.data() == null) {
+                return const SizedBox();
+              }
+
               Map<String, dynamic> data = post.data() as Map<String, dynamic>;
 
               List likes = data.containsKey('likes') ? data['likes'] : [];
@@ -42,25 +47,32 @@ class FeedScreen extends StatelessWidget {
               bool isLiked = likes.contains(currentUserId);
 
               String userName = data['nombre'] ?? 'Usuario';
+              String foto = data['fotoUsuario'] ?? '';
+              String contenido = data['contenido'] ?? '';
+              String imagenPost = data['imagenPost'] ?? '';
 
               return Card(
                 margin: const EdgeInsets.all(10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 3,
                 child: Padding(
                   padding: const EdgeInsets.all(10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 👤 USUARIO + 🗑 ELIMINAR
+                      // 👤 HEADER
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Row(
                             children: [
                               CircleAvatar(
-                                backgroundImage: data['fotoUsuario'] != ''
-                                    ? NetworkImage(data['fotoUsuario'])
+                                backgroundImage: foto.isNotEmpty
+                                    ? NetworkImage(foto)
                                     : null,
-                                child: data['fotoUsuario'] == ''
+                                child: foto.isEmpty
                                     ? const Icon(Icons.person)
                                     : null,
                               ),
@@ -74,12 +86,12 @@ class FeedScreen extends StatelessWidget {
                             ],
                           ),
 
-                          // 🔥 SOLO EL DUEÑO VE EL BOTÓN
+                          // 🗑 ELIMINAR
                           if (data['uid'] == currentUserId)
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed: () async {
-                                bool confirm = await showDialog(
+                                bool? confirm = await showDialog<bool>(
                                   context: context,
                                   builder: (context) => AlertDialog(
                                     title: const Text("Eliminar post"),
@@ -112,17 +124,19 @@ class FeedScreen extends StatelessWidget {
                       const SizedBox(height: 10),
 
                       // 📝 TEXTO
-                      Text(data['contenido'] ?? ''),
+                      if (contenido.isNotEmpty) Text(contenido),
 
                       const SizedBox(height: 10),
 
                       // 🖼 IMAGEN
-                      if (data['imagenPost'] != null &&
-                          data['imagenPost'] != '')
+                      if (imagenPost.isNotEmpty)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10),
                           child: Image.network(
-                            data['imagenPost'],
+                            imagenPost,
+                            height: 250,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
                               return const Text("Error cargando imagen");
                             },
@@ -140,7 +154,7 @@ class FeedScreen extends StatelessWidget {
                             },
                             icon: Icon(
                               isLiked ? Icons.favorite : Icons.favorite_border,
-                              color: isLiked ? Colors.red : null,
+                              color: isLiked ? Colors.red : Colors.grey,
                             ),
                           ),
 

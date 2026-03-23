@@ -37,7 +37,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void logout() async {
     await FirebaseAuth.instance.signOut();
-
     Navigator.pushReplacementNamed(context, '/login');
   }
 
@@ -58,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // 🔥 FOTO + NOMBRE
+                  // 👤 FOTO + NOMBRE
                   CircleAvatar(
                     radius: 50,
                     backgroundImage:
@@ -82,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 30),
 
-                  // 🔥 BOTONES
+                  // 🔥 BOTÓN PERFIL
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -100,13 +99,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 10),
 
+                  // 🔥 BOTÓN FEED (CORREGIDO)
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const FeedScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const FeedScreen(), // ✅ YA FUNCIONA
+                          ),
                         );
                       },
                       child: const Text("Ver publicaciones"),
@@ -115,6 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 10),
 
+                  // 🔥 BOTÓN CREAR POST
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
