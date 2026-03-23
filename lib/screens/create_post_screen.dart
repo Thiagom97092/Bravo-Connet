@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../services/post_service.dart';
 import '../services/storage_service.dart';
-import '../services/firestore_service.dart'; // ✅ IMPORTANTE
+import '../services/firestore_service.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -21,7 +21,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   final PostService _postService = PostService();
   final StorageService _storageService = StorageService();
-  final FirestoreService _firestoreService = FirestoreService(); // ✅
+  final FirestoreService _firestoreService = FirestoreService();
 
   // 📸 SELECCIONAR IMAGEN
   Future<void> _pickImage() async {
@@ -42,15 +42,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     String imageUrl = '';
 
-    // 🔥 SUBIR IMAGEN
+    // 🔥 CORRECCIÓN AQUÍ
     if (_imageFile != null) {
-      imageUrl = await _storageService.uploadImage(
-        _imageFile!,
-        DateTime.now().millisecondsSinceEpoch.toString(),
-      );
+      imageUrl = await _storageService.uploadImage(_imageFile!, "posts");
     }
 
-    // 🔥 OBTENER DATOS DEL USUARIO DESDE FIRESTORE (CORRECTO)
     String nombre = 'Usuario';
     String foto = '';
 
@@ -60,14 +56,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       if (userData != null) {
         nombre = userData['nombre'] ?? 'Usuario';
         foto = userData['foto'] ?? '';
-      } else {
-        print("⚠️ Usuario no encontrado en colección 'usuarios'");
       }
     } catch (e) {
       print("Error obteniendo usuario: $e");
     }
 
-    // 🔥 CREAR POST
     await _postService.createPost(
       uid: user.uid,
       nombre: nombre,
@@ -87,7 +80,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // 📝 TEXTO
             TextField(
               controller: _contenidoController,
               decoration: const InputDecoration(
@@ -97,12 +89,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
             const SizedBox(height: 10),
 
-            // 🖼 PREVIEW DE IMAGEN
             if (_imageFile != null) Image.file(_imageFile!, height: 150),
 
             const SizedBox(height: 10),
 
-            // 📸 BOTÓN SELECCIONAR IMAGEN
             ElevatedButton(
               onPressed: _pickImage,
               child: const Text("Seleccionar imagen"),
@@ -110,7 +100,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
             const SizedBox(height: 20),
 
-            // 🚀 BOTÓN PUBLICAR
             ElevatedButton(
               onPressed: _createPost,
               child: const Text("Publicar"),

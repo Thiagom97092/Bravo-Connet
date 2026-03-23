@@ -1,33 +1,22 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MarketplaceService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final CollectionReference products = FirebaseFirestore.instance.collection(
+    'products',
+  );
 
-  // 🛒 CREAR PRODUCTO
-  Future<void> createProduct({
-    required String nombre,
-    required String descripcion,
-    required double precio,
-    required String imagen,
-    required String uid,
-    required String nombreUsuario,
-  }) async {
-    await _db.collection('productos').add({
-      'nombre': nombre,
-      'descripcion': descripcion,
-      'precio': precio,
-      'imagen': imagen,
-      'uid': uid,
-      'nombreUsuario': nombreUsuario,
-      'fecha': DateTime.now(),
-    });
+  // 📥 OBTENER PRODUCTOS
+  Stream<QuerySnapshot> getProducts() {
+    return products.orderBy('fecha', descending: true).snapshots();
   }
 
-  // 📦 OBTENER PRODUCTOS
-  Stream<QuerySnapshot> getProducts() {
-    return _db
-        .collection('productos')
-        .orderBy('fecha', descending: true)
-        .snapshots();
+  // ➕ CREAR PRODUCTO
+  Future<void> createProduct(Map<String, dynamic> data) async {
+    await products.add(data);
+  }
+
+  // ❌ ELIMINAR PRODUCTO
+  Future<void> deleteProduct(String productId) async {
+    await products.doc(productId).delete();
   }
 }

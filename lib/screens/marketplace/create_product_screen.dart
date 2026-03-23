@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // ✅ FALTABA
 
-import '../../services/marketplace_service.dart';
 import '../../services/storage_service.dart';
-import '../../services/firestore_service.dart';
+import '../../services/marketplace_service.dart';
 
 class CreateProductScreen extends StatefulWidget {
   const CreateProductScreen({super.key});
@@ -15,51 +15,53 @@ class CreateProductScreen extends StatefulWidget {
 }
 
 class _CreateProductScreenState extends State<CreateProductScreen> {
-  final _nombreController = TextEditingController();
-  final _descripcionController = TextEditingController();
-  final _precioController = TextEditingController();
+  final TextEditingController nombreController = TextEditingController();
+  final TextEditingController precioController = TextEditingController();
+  final TextEditingController descripcionController = TextEditingController();
 
-  File? _imageFile;
+  File? image;
+  bool isLoading = false;
 
-  final MarketplaceService _service = MarketplaceService();
-  final StorageService _storage = StorageService();
-  final FirestoreService _firestore = FirestoreService();
+  final picker = ImagePicker();
+  final storageService = StorageService();
+  final marketplaceService = MarketplaceService();
 
-  Future<void> _pickImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+  // 📸 SELECCIONAR IMAGEN
+  Future<void> pickImage() async {
+    final picked = await picker.pickImage(source: ImageSource.gallery);
 
     if (picked != null) {
       setState(() {
-        _imageFile = File(picked.path);
+        image = File(picked.path);
       });
     }
   }
 
-  Future<void> _createProduct() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+  // 🚀 CREAR PRODUCTO
+  Future<void> createProduct() async {
+    if (nombreController.text.isEmpty || precioController.text.isEmpty) {
+      return;
+    }
+
+    setState(() => isLoading = true);
 
     String imageUrl = '';
 
-    if (_imageFile != null) {
-      imageUrl = await _storage.uploadImage(
-        _imageFile!,
-        DateTime.now().millisecondsSinceEpoch.toString(),
-      );
+    // 🔥 CORRECCIÓN AQUÍ
+    if (image != null) {
+      imageUrl = await storageService.uploadImage(image!, "products");
     }
 
-    final userData = await _firestore.getUser(user.uid);
+    final user = FirebaseAuth.instance.currentUser;
 
-    String nombreUsuario = userData?['nombre'] ?? 'Usuario';
-
-    await _service.createProduct(
-      nombre: _nombreController.text,
-      descripcion: _descripcionController.text,
-      precio: double.tryParse(_precioController.text) ?? 0,
-      imagen: imageUrl,
-      uid: user.uid,
-      nombreUsuario: nombreUsuario,
-    );
+    await marketplaceService.createProduct({
+      'nombre': nombreController.text,
+      'precio': precioController.text,
+      'descripcion': descripcionController.text,
+      'imagen': imageUrl,
+      'uid': user!.uid,
+      'fecha': FieldValue.serverTimestamp(),
+    });
 
     Navigator.pop(context);
   }
@@ -67,40 +69,45 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Vender producto")),
+      appBar: AppBar(title: const Text("Nuevo Producto")),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(15),
         child: Column(
           children: [
+            GestureDetector(
+              onTap: pickImage,
+              child: image == null
+                  ? Container(
+                      height: 150,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.add_a_photo),
+                    )
+                  : Image.file(image!, height: 150),
+            ),
+
             TextField(
-              controller: _nombreController,
+              controller: nombreController,
               decoration: const InputDecoration(labelText: "Nombre"),
             ),
+
             TextField(
-              controller: _descripcionController,
-              decoration: const InputDecoration(labelText: "Descripción"),
-            ),
-            TextField(
-              controller: _precioController,
-              keyboardType: TextInputType.number,
+              controller: precioController,
               decoration: const InputDecoration(labelText: "Precio"),
             ),
 
-            const SizedBox(height: 10),
-
-            if (_imageFile != null) Image.file(_imageFile!, height: 120),
-
-            ElevatedButton(
-              onPressed: _pickImage,
-              child: const Text("Seleccionar imagen"),
+            TextField(
+              controller: descripcionController,
+              decoration: const InputDecoration(labelText: "Descripción"),
             ),
 
             const SizedBox(height: 20),
 
-            ElevatedButton(
-              onPressed: _createProduct,
-              child: const Text("Publicar producto"),
-            ),
+            isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+                    onPressed: createProduct,
+                    child: const Text("Publicar"),
+                  ),
           ],
         ),
       ),
