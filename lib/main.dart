@@ -8,6 +8,7 @@ import 'firebase_options.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/profile/profile_screen.dart';
+import 'screens/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,7 +49,7 @@ class AuthWrapper extends StatelessWidget {
     final User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      return const HomeScreen();
+      return const MainScreen(); // 🔥 CAMBIO AQUÍ
     } else {
       return LoginScreen();
     }

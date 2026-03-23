@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+// 🔥 IMPORTS DEL CHAT
+import '../../services/chat_service.dart';
+import '../chat/chat_screen.dart';
+
 class ProductDetailScreen extends StatelessWidget {
   final Map<String, dynamic> productData;
   final String productId;
@@ -22,7 +26,11 @@ class ProductDetailScreen extends StatelessWidget {
     String uid = productData['uid'] ?? '';
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Detalle del producto")),
+      appBar: AppBar(
+        title: const Text("Detalle del producto"),
+        centerTitle: true,
+      ),
+
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,19 +80,36 @@ class ProductDetailScreen extends StatelessWidget {
 
                   const SizedBox(height: 30),
 
-                  // 💬 BOTÓN CONTACTAR
+                  // 💬 BOTÓN CONTACTAR (CHAT REAL 🔥)
                   if (user != null && user.uid != uid)
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         icon: const Icon(Icons.chat),
                         label: const Text("Contactar vendedor"),
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Próximamente chat disponible 🔥"),
-                            ),
-                          );
+                        onPressed: () async {
+                          try {
+                            final chatService = ChatService();
+
+                            // 🔥 CREAR OBTENER CHAT
+                            String chatId = await chatService.createOrGetChat(
+                              uid,
+                            );
+
+                            // 🚀 IR AL CHAT
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ChatScreen(chatId: chatId),
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("Error al abrir chat: $e"),
+                              ),
+                            );
+                          }
                         },
                       ),
                     ),

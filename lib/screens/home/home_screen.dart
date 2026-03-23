@@ -5,7 +5,10 @@ import '../../services/firestore_service.dart';
 import '../profile/profile_screen.dart';
 import '../feed_screen.dart';
 import '../create_post_screen.dart';
-import '../marketplace/marketplace_screen.dart'; // ✅ NUEVO
+import '../marketplace/marketplace_screen.dart';
+
+// 🔥 IMPORT CHAT
+import '../chat/chat_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,7 +55,22 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Bravo Connet"),
+        centerTitle: true,
+
+        // 🔥 AQUÍ ESTÁ LA MEJORA
         actions: [
+          // 💬 ICONO DE CHAT
+          IconButton(
+            icon: const Icon(Icons.chat),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatListScreen()),
+              );
+            },
+          ),
+
+          // 🔓 LOGOUT
           IconButton(onPressed: logout, icon: const Icon(Icons.logout)),
         ],
       ),
@@ -127,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
 
-                  // 🛒 NUEVO MÓDULO MARKETPLACE
+                  // 🛒 MARKETPLACE
                   buildButton(
                     text: "Marketplace",
                     icon: Icons.store,
