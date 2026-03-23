@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "309395665654",
+    "project_id": "bravo-connet",
+    "storage_bucket": "bravo-connet.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:309395665654:android:60b0dd9d49bee16c9832d7",
+        "android_client_info": {
+          "package_name": "com.example.bravo_connet"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDgwwPBsrFZd8q9atwWmK5xAEHElJKcWKc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:309395665654:android:b9c988bdd2706c5a9832d7",
+        "android_client_info": {
+          "package_name": "com.example.bravo_connet_v2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDgwwPBsrFZd8q9atwWmK5xAEHElJKcWKc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
