@@ -18,6 +18,14 @@ class _ChatScreenState extends State<ChatScreen> {
   final ChatService _chatService = ChatService();
   final user = FirebaseAuth.instance.currentUser;
 
+  @override
+  void initState() {
+    super.initState();
+
+    // 🔥 MARCAR MENSAJES COMO LEÍDOS AL ENTRAR
+    _chatService.markAsRead(widget.chatId);
+  }
+
   void sendMessage() async {
     if (_controller.text.trim().isEmpty) return;
 
@@ -45,6 +53,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 final messages = snapshot.data!.docs;
 
                 return ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final msg = messages[index];
@@ -56,16 +65,19 @@ class _ChatScreenState extends State<ChatScreen> {
                       alignment: isMe
                           ? Alignment.centerRight
                           : Alignment.centerLeft,
+
                       child: Container(
                         margin: const EdgeInsets.symmetric(
                           vertical: 5,
                           horizontal: 10,
                         ),
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(12),
+
                         decoration: BoxDecoration(
                           color: isMe ? Colors.green : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+
                         child: Text(
                           data['text'] ?? '',
                           style: TextStyle(
@@ -80,22 +92,35 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          // ✍️ INPUT
+          // ✍️ INPUT DE MENSAJE
           Padding(
             padding: const EdgeInsets.all(8),
+
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: "Escribe un mensaje...",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 15,
+                      ),
                     ),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: sendMessage,
+
+                const SizedBox(width: 8),
+
+                CircleAvatar(
+                  backgroundColor: Colors.green,
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    onPressed: sendMessage,
+                  ),
                 ),
               ],
             ),

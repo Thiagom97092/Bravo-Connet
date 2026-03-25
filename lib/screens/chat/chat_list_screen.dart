@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/chat_service.dart';
 import 'chat_screen.dart';
+import 'search_user_screen.dart'; // ✅ NUEVO
 
 class ChatListScreen extends StatelessWidget {
   const ChatListScreen({super.key});
@@ -15,25 +16,35 @@ class ChatListScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
 
-      appBar: AppBar(title: const Text("Chats")),
+      appBar: AppBar(
+        title: const Text("Chats"),
+        actions: [
+          // 🔍 BUSCAR USUARIOS
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SearchUserScreen()),
+              );
+            },
+          ),
+        ],
+      ),
 
       body: StreamBuilder<QuerySnapshot>(
         stream: ChatService().getUserChats(),
 
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
-            return const Center(child: Text("Error cargando chats"));
-          }
+          final chats = snapshot.data!.docs;
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          if (chats.isEmpty) {
             return const Center(child: Text("No tienes chats aún"));
           }
-
-          final chats = snapshot.data!.docs;
 
           return ListView.separated(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -48,14 +59,18 @@ class ChatListScreen extends StatelessWidget {
               participants.remove(currentUser!.uid);
               final otherUserId = participants.first;
 
-              // 🕒 HORA (CORRECTA)
+              // 🕒 HORA
               String hora = "";
               if (data['lastTimestamp'] != null) {
-                final timestamp = data['lastTimestamp'] as Timestamp;
-                final date = timestamp.toDate();
-
+                final date = (data['lastTimestamp'] as Timestamp).toDate();
                 hora =
                     "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
+              }
+
+              // 🔴 NO LEÍDOS
+              int unread = 0;
+              if (data['unreadCount'] != null) {
+                unread = data['unreadCount'][currentUser.uid] ?? 0;
               }
 
               return FutureBuilder<DocumentSnapshot>(
@@ -66,10 +81,7 @@ class ChatListScreen extends StatelessWidget {
 
                 builder: (context, userSnapshot) {
                   if (!userSnapshot.hasData) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: Text("Cargando..."),
-                    );
+                    return const SizedBox();
                   }
 
                   final userData =
@@ -96,7 +108,6 @@ class ChatListScreen extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: Colors.grey.shade200),
                           boxShadow: const [
                             BoxShadow(
                               color: Colors.black12,
@@ -125,7 +136,7 @@ class ChatListScreen extends StatelessWidget {
 
                             const SizedBox(width: 12),
 
-                            // 📄 TEXTO
+                            // 📄 INFO
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -138,7 +149,6 @@ class ChatListScreen extends StatelessWidget {
                                       Text(
                                         userData['nombre'] ?? "Usuario",
                                         style: const TextStyle(
-                                          fontSize: 16,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -154,17 +164,36 @@ class ChatListScreen extends StatelessWidget {
 
                                   const SizedBox(height: 5),
 
-                                  // 💬 MENSAJE
-                                  Text(
-                                    data['lastMessage'] != null &&
-                                            data['lastMessage']
-                                                .toString()
-                                                .isNotEmpty
-                                        ? data['lastMessage']
-                                        : "Sin mensajes",
-                                    style: TextStyle(color: Colors.grey[600]),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  // 💬 MENSAJE + 🔴 CONTADOR
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          data['lastMessage'] ?? "",
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+
+                                      if (unread > 0)
+                                        Container(
+                                          margin: const EdgeInsets.only(
+                                            left: 8,
+                                          ),
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.green,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Text(
+                                            unread.toString(),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ],
                               ),

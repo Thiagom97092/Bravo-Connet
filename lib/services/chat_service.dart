@@ -23,16 +23,18 @@ class ChatService {
       'participants': [user!.uid, otherUserId],
       'lastMessage': '',
       'lastTimestamp': FieldValue.serverTimestamp(),
+      'unreadCount': {user!.uid: 0, otherUserId: 0},
     });
 
     return newChat.id;
   }
 
-  // 📡 LISTA DE CHATS (SIN orderBy para evitar error)
+  // 🔥 ORDENADO POR MÁS RECIENTE
   Stream<QuerySnapshot> getUserChats() {
     return _db
         .collection('chats')
         .where('participants', arrayContains: user!.uid)
+        .orderBy('lastTimestamp', descending: true) // 🔥 CLAVE
         .snapshots();
   }
 
@@ -48,15 +50,37 @@ class ChatService {
 
   // ✉️ ENVIAR MENSAJE
   Future<void> sendMessage(String chatId, String text) async {
-    await _db.collection('chats').doc(chatId).collection('messages').add({
+    final chatRef = _db.collection('chats').doc(chatId);
+
+    final chatDoc = await chatRef.get();
+    final data = chatDoc.data()!;
+
+    final participants = List<String>.from(data['participants']);
+
+    final otherUser = participants.firstWhere((id) => id != user!.uid);
+
+    await chatRef.collection('messages').add({
       'senderId': user!.uid,
       'text': text,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    await _db.collection('chats').doc(chatId).update({
+    await chatRef.update({
       'lastMessage': text,
       'lastTimestamp': FieldValue.serverTimestamp(),
+
+      // 🔴 SUMA NO LEÍDOS AL OTRO
+      'unreadCount.$otherUser': FieldValue.increment(1),
+
+      // 🟢 RESETEA LOS MÍOS
+      'unreadCount.${user!.uid}': 0,
+    });
+  }
+
+  // ✅ MARCAR COMO LEÍDO
+  Future<void> markAsRead(String chatId) async {
+    await _db.collection('chats').doc(chatId).update({
+      'unreadCount.${user!.uid}': 0,
     });
   }
 }
