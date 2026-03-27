@@ -23,15 +23,57 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final StorageService _storageService = StorageService();
   final FirestoreService _firestoreService = FirestoreService();
 
-  // 📸 SELECCIONAR IMAGEN
-  Future<void> _pickImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+  final ImagePicker _picker = ImagePicker();
+
+  // 📸 GALERÍA
+  Future<void> _pickFromGallery() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
 
     if (picked != null) {
       setState(() {
         _imageFile = File(picked.path);
       });
     }
+  }
+
+  // 📷 CÁMARA
+  Future<void> _pickFromCamera() async {
+    final picked = await _picker.pickImage(source: ImageSource.camera);
+
+    if (picked != null) {
+      setState(() {
+        _imageFile = File(picked.path);
+      });
+    }
+  }
+
+  // 🔥 MODAL (como Facebook / Instagram)
+  void _showImageOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text("Tomar foto"),
+              onTap: () {
+                Navigator.pop(context);
+                _pickFromCamera();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo),
+              title: const Text("Elegir de galería"),
+              onTap: () {
+                Navigator.pop(context);
+                _pickFromGallery();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // 🚀 CREAR POST
@@ -42,7 +84,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     String imageUrl = '';
 
-    // 🔥 CORRECCIÓN AQUÍ
     if (_imageFile != null) {
       imageUrl = await _storageService.uploadImage(_imageFile!, "posts");
     }
@@ -65,7 +106,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       uid: user.uid,
       nombre: nombre,
       fotoUsuario: foto,
-      contenido: _contenidoController.text,
+      contenido: _contenidoController.text.trim(),
       imagenPost: imageUrl,
     );
 
@@ -76,33 +117,67 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Crear publicación")),
+
       body: Padding(
         padding: const EdgeInsets.all(16),
+
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ✍️ TEXTO
             TextField(
               controller: _contenidoController,
+              maxLines: 3,
               decoration: const InputDecoration(
                 hintText: "¿Qué estás pensando?",
+                border: OutlineInputBorder(),
               ),
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 15),
 
-            if (_imageFile != null) Image.file(_imageFile!, height: 150),
+            // 🖼 PREVIEW IMAGEN
+            if (_imageFile != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.file(_imageFile!, height: 180),
+              ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 15),
 
-            ElevatedButton(
-              onPressed: _pickImage,
-              child: const Text("Seleccionar imagen"),
+            // 📸 BOTÓN IMAGEN
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _showImageOptions,
+                  icon: const Icon(Icons.image),
+                  label: const Text("Agregar imagen"),
+                ),
+
+                const SizedBox(width: 10),
+
+                // ❌ QUITAR IMAGEN
+                if (_imageFile != null)
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.red),
+                    onPressed: () {
+                      setState(() {
+                        _imageFile = null;
+                      });
+                    },
+                  ),
+              ],
             ),
 
-            const SizedBox(height: 20),
+            const Spacer(),
 
-            ElevatedButton(
-              onPressed: _createPost,
-              child: const Text("Publicar"),
+            // 🚀 PUBLICAR
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _createPost,
+                child: const Text("Publicar"),
+              ),
             ),
           ],
         ),

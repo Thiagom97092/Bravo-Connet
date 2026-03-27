@@ -29,12 +29,12 @@ class ChatService {
     return newChat.id;
   }
 
-  // 🔥 ORDENADO POR MÁS RECIENTE
+  // 🔥 LISTA DE CHATS
   Stream<QuerySnapshot> getUserChats() {
     return _db
         .collection('chats')
         .where('participants', arrayContains: user!.uid)
-        .orderBy('lastTimestamp', descending: true) // 🔥 CLAVE
+        .orderBy('lastTimestamp', descending: true)
         .snapshots();
   }
 
@@ -48,31 +48,50 @@ class ChatService {
         .snapshots();
   }
 
-  // ✉️ ENVIAR MENSAJE
-  Future<void> sendMessage(String chatId, String text) async {
+  // ✉️ ENVIAR MENSAJE (🔥 MEJORADO)
+  Future<void> sendMessage(
+    String chatId,
+    String text, [
+    Map<String, dynamic>? extraData,
+  ]) async {
     final chatRef = _db.collection('chats').doc(chatId);
 
     final chatDoc = await chatRef.get();
     final data = chatDoc.data()!;
 
     final participants = List<String>.from(data['participants']);
-
     final otherUser = participants.firstWhere((id) => id != user!.uid);
 
+    // 🔥 DEFINIR TIPO
+    final String type = extraData?['type'] ?? 'text';
+
+    // 🔥 MENSAJE PREVIEW (lo que se ve en lista de chats)
+    String lastMessageText = text;
+
+    if (type == 'image') {
+      lastMessageText = "📷 Imagen";
+    } else if (type == 'file') {
+      lastMessageText = "📎 Archivo";
+    }
+
+    // 🔥 GUARDAR MENSAJE
     await chatRef.collection('messages').add({
       'senderId': user!.uid,
       'text': text,
+      'type': type,
       'timestamp': FieldValue.serverTimestamp(),
+      ...?extraData, // 👈 AQUÍ SE GUARDAN fileUrl, fileName, etc
     });
 
+    // 🔥 ACTUALIZAR CHAT
     await chatRef.update({
-      'lastMessage': text,
+      'lastMessage': lastMessageText,
       'lastTimestamp': FieldValue.serverTimestamp(),
 
-      // 🔴 SUMA NO LEÍDOS AL OTRO
+      // 🔴 MENSAJES NO LEÍDOS
       'unreadCount.$otherUser': FieldValue.increment(1),
 
-      // 🟢 RESETEA LOS MÍOS
+      // 🟢 RESETEAR LOS MÍOS
       'unreadCount.${user!.uid}': 0,
     });
   }

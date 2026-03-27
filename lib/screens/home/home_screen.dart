@@ -74,94 +74,95 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(onPressed: logout, icon: const Icon(Icons.logout)),
         ],
       ),
-
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : userData == null
-          ? const Center(child: Text("Error cargando usuario"))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  // 👤 FOTO + NOMBRE
-                  CircleAvatar(
-                    radius: 50,
-                    backgroundImage:
-                        userData!['foto'] != null && userData!['foto'] != ''
-                        ? NetworkImage(userData!['foto'])
-                        : null,
-                    child: userData!['foto'] == null || userData!['foto'] == ''
-                        ? const Icon(Icons.person, size: 50)
-                        : null,
-                  ),
+              ? const Center(child: Text("Error cargando usuario"))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      // 👤 FOTO + NOMBRE
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundImage:
+                            userData!['foto'] != null && userData!['foto'] != ''
+                                ? NetworkImage(userData!['foto'])
+                                : null,
+                        child:
+                            userData!['foto'] == null || userData!['foto'] == ''
+                                ? const Icon(Icons.person, size: 50)
+                                : null,
+                      ),
 
-                  const SizedBox(height: 15),
+                      const SizedBox(height: 15),
 
-                  Text(
-                    userData!['nombre'] ?? "Usuario",
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // 🔥 BOTONES PRINCIPALES
-                  buildButton(
-                    text: "Ir a Perfil",
-                    icon: Icons.person,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ProfileScreen(),
+                      Text(
+                        userData!['nombre'] ?? "Usuario",
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
                         ),
-                      );
-                    },
-                  ),
+                      ),
 
-                  buildButton(
-                    text: "Ver publicaciones",
-                    icon: Icons.feed,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const FeedScreen()),
-                      );
-                    },
-                  ),
+                      const SizedBox(height: 30),
 
-                  buildButton(
-                    text: "Crear publicación",
-                    icon: Icons.add_box,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const CreatePostScreen(),
-                        ),
-                      );
-                    },
-                  ),
+                      // 🔥 BOTONES PRINCIPALES
+                      buildButton(
+                        text: "Ir a Perfil",
+                        icon: Icons.person,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProfileScreen(),
+                            ),
+                          );
+                        },
+                      ),
 
-                  // 🛒 MARKETPLACE
-                  buildButton(
-                    text: "Marketplace",
-                    icon: Icons.store,
-                    color: Colors.green,
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const MarketplaceScreen(),
-                        ),
-                      );
-                    },
+                      buildButton(
+                        text: "Ver publicaciones",
+                        icon: Icons.feed,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const FeedScreen()),
+                          );
+                        },
+                      ),
+
+                      buildButton(
+                        text: "Crear publicación",
+                        icon: Icons.add_box,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CreatePostScreen(),
+                            ),
+                          );
+                        },
+                      ),
+
+                      // 🛒 MARKETPLACE
+                      buildButton(
+                        text: "Marketplace",
+                        icon: Icons.store,
+                        color: Colors.green,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MarketplaceScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
     );
   }
 

@@ -44,7 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  // 🔥 SELECCIONAR DESDE GALERÍA
+  // 📸 GALERÍA
   Future<void> pickFromGallery() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
 
@@ -55,7 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // 🔥 TOMAR FOTO CON CÁMARA
+  // 📸 CÁMARA
   Future<void> pickFromCamera() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.camera);
 
@@ -66,7 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // 🔥 MOSTRAR OPCIONES
+  // 🔥 OPCIONES
   void showImageOptions() {
     showModalBottomSheet(
       context: context,
@@ -112,23 +112,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     await loadUserData();
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text("Perfil actualizado")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Perfil actualizado")),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Perfil")),
-
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // 🔥 FOTO DE PERFIL
+                  // 🔥 FOTO PERFIL
                   Stack(
                     children: [
                       GestureDetector(
@@ -136,27 +135,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         child: CircleAvatar(
                           radius: 55,
                           backgroundColor: Colors.grey[300],
+
+                          // ✅ AQUÍ ESTÁ LA CORRECCIÓN
                           backgroundImage: imageFile != null
-                              ? FileImage(imageFile!)
+                              ? FileImage(imageFile!) as ImageProvider
                               : (imageUrl != null && imageUrl!.isNotEmpty)
-                              ? NetworkImage(imageUrl!)
-                              : null,
-                          child:
-                              imageFile == null &&
+                                  ? NetworkImage(imageUrl!) as ImageProvider
+                                  : null,
+
+                          child: imageFile == null &&
                                   (imageUrl == null || imageUrl!.isEmpty)
                               ? const Icon(Icons.person, size: 50)
                               : null,
                         ),
                       ),
 
-                      // 🔥 ICONO CÁMARA
+                      // 📸 BOTÓN CÁMARA
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: GestureDetector(
                           onTap: showImageOptions,
                           child: Container(
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Colors.green,
                               shape: BoxShape.circle,
                             ),
@@ -174,7 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: 25),
 
-                  // 🔥 NOMBRE
+                  // 👤 NOMBRE
                   TextField(
                     controller: nombreController,
                     decoration: const InputDecoration(
@@ -186,7 +187,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: 25),
 
-                  // 🔥 BOTÓN GUARDAR
+                  // 💾 GUARDAR
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
