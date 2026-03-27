@@ -44,7 +44,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  Future<void> pickImage() async {
+  // 🔥 SELECCIONAR DESDE GALERÍA
+  Future<void> pickFromGallery() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
 
     if (picked != null) {
@@ -54,6 +55,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // 🔥 TOMAR FOTO CON CÁMARA
+  Future<void> pickFromCamera() async {
+    final picked = await ImagePicker().pickImage(source: ImageSource.camera);
+
+    if (picked != null) {
+      setState(() {
+        imageFile = File(picked.path);
+      });
+    }
+  }
+
+  // 🔥 MOSTRAR OPCIONES
+  void showImageOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo),
+                title: const Text("Elegir de galería"),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickFromGallery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text("Tomar foto"),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickFromCamera();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> updateUser() async {
     String? url = imageUrl;
 
@@ -61,18 +104,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       url = await _storageService.uploadImage(imageFile!, user!.uid);
     }
 
-    print("📌 URL A GUARDAR: $url");
-
     await _firestoreService.updateUser(
       uid: user!.uid,
       nombre: nombreController.text.trim(),
       foto: url,
     );
 
-    // 🔥 Recargar datos para reflejar cambios
     await loadUserData();
-
-    setState(() {});
 
     ScaffoldMessenger.of(
       context,
@@ -83,42 +121,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Perfil")),
+
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  GestureDetector(
-                    onTap: pickImage,
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundImage: imageFile != null
-                          ? FileImage(imageFile!)
-                          : (imageUrl != null && imageUrl!.isNotEmpty)
-                          ? NetworkImage(imageUrl!)
-                          : null,
-                      child:
-                          imageFile == null &&
-                              (imageUrl == null || imageUrl!.isEmpty)
-                          ? const Icon(Icons.camera_alt, size: 40)
-                          : null,
-                    ),
+                  // 🔥 FOTO DE PERFIL
+                  Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: showImageOptions,
+                        child: CircleAvatar(
+                          radius: 55,
+                          backgroundColor: Colors.grey[300],
+                          backgroundImage: imageFile != null
+                              ? FileImage(imageFile!)
+                              : (imageUrl != null && imageUrl!.isNotEmpty)
+                              ? NetworkImage(imageUrl!)
+                              : null,
+                          child:
+                              imageFile == null &&
+                                  (imageUrl == null || imageUrl!.isEmpty)
+                              ? const Icon(Icons.person, size: 50)
+                              : null,
+                        ),
+                      ),
+
+                      // 🔥 ICONO CÁMARA
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: showImageOptions,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.green,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(8),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
+
+                  const SizedBox(height: 25),
+
+                  // 🔥 NOMBRE
                   TextField(
                     controller: nombreController,
                     decoration: const InputDecoration(
                       labelText: "Nombre",
                       border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person),
                     ),
                   ),
-                  const SizedBox(height: 20),
+
+                  const SizedBox(height: 25),
+
+                  // 🔥 BOTÓN GUARDAR
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: updateUser,
-                      child: const Text("Guardar cambios"),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text(
+                        "Guardar cambios",
+                        style: TextStyle(fontSize: 16),
+                      ),
                     ),
                   ),
                 ],

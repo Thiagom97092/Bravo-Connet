@@ -25,6 +25,7 @@ class _GrupoDetalleScreenState extends State<GrupoDetalleScreen> {
   final TextEditingController postController = TextEditingController();
   File? imagenSeleccionada;
 
+  // 🔥 SUBIR IMAGEN
   Future<String?> subirImagen(File file) async {
     final ref = FirebaseStorage.instance.ref().child(
       'posts/${DateTime.now().millisecondsSinceEpoch}.jpg',
@@ -34,17 +35,62 @@ class _GrupoDetalleScreenState extends State<GrupoDetalleScreen> {
     return await ref.getDownloadURL();
   }
 
+  // 🔥 NUEVO: CÁMARA + GALERÍA
   Future<void> seleccionarImagen() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
 
-    if (picked != null) {
-      setState(() {
-        imagenSeleccionada = File(picked.path);
-      });
-    }
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text("Tomar foto"),
+                onTap: () async {
+                  final picked = await picker.pickImage(
+                    source: ImageSource.camera,
+                    imageQuality: 70,
+                    maxWidth: 800,
+                  );
+
+                  if (picked != null) {
+                    setState(() {
+                      imagenSeleccionada = File(picked.path);
+                    });
+                  }
+
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo),
+                title: const Text("Elegir de galería"),
+                onTap: () async {
+                  final picked = await picker.pickImage(
+                    source: ImageSource.gallery,
+                    imageQuality: 70,
+                    maxWidth: 800,
+                  );
+
+                  if (picked != null) {
+                    setState(() {
+                      imagenSeleccionada = File(picked.path);
+                    });
+                  }
+
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
+  // 🔥 CREAR POST
   void crearPost() async {
     if (postController.text.trim().isEmpty && imagenSeleccionada == null) {
       return;
@@ -52,7 +98,6 @@ class _GrupoDetalleScreenState extends State<GrupoDetalleScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
 
-    // 🔥 OBTENER DATOS DEL USUARIO
     final userDoc = await FirebaseFirestore.instance
         .collection('usuarios')
         .doc(user!.uid)
@@ -74,7 +119,7 @@ class _GrupoDetalleScreenState extends State<GrupoDetalleScreen> {
           'texto': postController.text.trim(),
           'imagen': imageUrl,
           'userId': user.uid,
-          'userName': userData?['nombre'] ?? "Sin nombre", // ✅ CORREGIDO
+          'userName': userData?['nombre'] ?? "Sin nombre",
           'userPhoto': userData?['foto'] ?? "",
           'fecha': FieldValue.serverTimestamp(),
         });

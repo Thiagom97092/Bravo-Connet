@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // ✅ FALTABA
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../services/storage_service.dart';
 import '../../services/marketplace_service.dart';
@@ -26,8 +26,8 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   final storageService = StorageService();
   final marketplaceService = MarketplaceService();
 
-  // 📸 SELECCIONAR IMAGEN
-  Future<void> pickImage() async {
+  // 📸 SELECCIONAR DESDE GALERÍA
+  Future<void> pickFromGallery() async {
     final picked = await picker.pickImage(source: ImageSource.gallery);
 
     if (picked != null) {
@@ -37,9 +37,54 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     }
   }
 
+  // 📷 TOMAR FOTO CON CÁMARA
+  Future<void> pickFromCamera() async {
+    final picked = await picker.pickImage(source: ImageSource.camera);
+
+    if (picked != null) {
+      setState(() {
+        image = File(picked.path);
+      });
+    }
+  }
+
+  // 🔥 MODAL PARA ELEGIR
+  void showImagePickerOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo),
+                title: const Text("Elegir de galería"),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickFromGallery();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text("Tomar foto"),
+                onTap: () {
+                  Navigator.pop(context);
+                  pickFromCamera();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // 🚀 CREAR PRODUCTO
   Future<void> createProduct() async {
     if (nombreController.text.isEmpty || precioController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Completa los campos obligatorios")),
+      );
       return;
     }
 
@@ -47,7 +92,6 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
 
     String imageUrl = '';
 
-    // 🔥 CORRECCIÓN AQUÍ
     if (image != null) {
       imageUrl = await storageService.uploadImage(image!, "products");
     }
@@ -55,9 +99,9 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     final user = FirebaseAuth.instance.currentUser;
 
     await marketplaceService.createProduct({
-      'nombre': nombreController.text,
-      'precio': precioController.text,
-      'descripcion': descripcionController.text,
+      'nombre': nombreController.text.trim(),
+      'precio': precioController.text.trim(),
+      'descripcion': descripcionController.text.trim(),
       'imagen': imageUrl,
       'uid': user!.uid,
       'fecha': FieldValue.serverTimestamp(),
@@ -70,44 +114,86 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Nuevo Producto")),
-      body: Padding(
+
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(15),
+
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 📸 IMAGEN
             GestureDetector(
-              onTap: pickImage,
-              child: image == null
-                  ? Container(
-                      height: 150,
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.add_a_photo),
-                    )
-                  : Image.file(image!, height: 150),
-            ),
-
-            TextField(
-              controller: nombreController,
-              decoration: const InputDecoration(labelText: "Nombre"),
-            ),
-
-            TextField(
-              controller: precioController,
-              decoration: const InputDecoration(labelText: "Precio"),
-            ),
-
-            TextField(
-              controller: descripcionController,
-              decoration: const InputDecoration(labelText: "Descripción"),
+              onTap: showImagePickerOptions,
+              child: Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: image == null
+                    ? const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_a_photo, size: 40),
+                          SizedBox(height: 10),
+                          Text("Agregar imagen"),
+                        ],
+                      )
+                    : ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.file(image!, fit: BoxFit.cover),
+                      ),
+              ),
             ),
 
             const SizedBox(height: 20),
 
-            isLoading
-                ? const CircularProgressIndicator()
-                : ElevatedButton(
-                    onPressed: createProduct,
-                    child: const Text("Publicar"),
-                  ),
+            // 📝 NOMBRE
+            TextField(
+              controller: nombreController,
+              decoration: const InputDecoration(
+                labelText: "Nombre",
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            // 💰 PRECIO
+            TextField(
+              controller: precioController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Precio",
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            // 📄 DESCRIPCIÓN
+            TextField(
+              controller: descripcionController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: "Descripción",
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 25),
+
+            // 🚀 BOTÓN
+            SizedBox(
+              width: double.infinity,
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      onPressed: createProduct,
+                      child: const Text("Publicar"),
+                    ),
+            ),
           ],
         ),
       ),

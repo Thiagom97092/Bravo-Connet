@@ -25,6 +25,9 @@ class _PostCardState extends State<PostCard> {
   final TextEditingController commentController = TextEditingController();
   File? imagenComentario;
 
+  final currentUser = FirebaseAuth.instance.currentUser;
+
+  // 🔥 SUBIR IMAGEN
   Future<String?> subirImagen(File file) async {
     final ref = FirebaseStorage.instance.ref().child(
       'comentarios/${DateTime.now().millisecondsSinceEpoch}.jpg',
@@ -34,30 +37,49 @@ class _PostCardState extends State<PostCard> {
     return await ref.getDownloadURL();
   }
 
+  // 🔥 SELECCIONAR IMAGEN (GALERÍA O CÁMARA)
   Future<void> seleccionarImagen() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-
-    if (picked != null) {
-      setState(() {
-        imagenComentario = File(picked.path);
-      });
-    }
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.photo),
+            title: const Text("Galería"),
+            onTap: () async {
+              Navigator.pop(context);
+              final picked = await ImagePicker().pickImage(
+                source: ImageSource.gallery,
+              );
+              if (picked != null) {
+                setState(() => imagenComentario = File(picked.path));
+              }
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.camera_alt),
+            title: const Text("Cámara"),
+            onTap: () async {
+              Navigator.pop(context);
+              final picked = await ImagePicker().pickImage(
+                source: ImageSource.camera,
+              );
+              if (picked != null) {
+                setState(() => imagenComentario = File(picked.path));
+              }
+            },
+          ),
+        ],
+      ),
+    );
   }
 
+  // 🔥 COMENTAR
   void comentar() async {
     if (commentController.text.trim().isEmpty && imagenComentario == null) {
       return;
     }
-
-    final user = FirebaseAuth.instance.currentUser;
-
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user!.uid)
-        .get();
-
-    final userData = userDoc.data();
 
     String? imageUrl;
 
@@ -74,9 +96,7 @@ class _PostCardState extends State<PostCard> {
         .add({
           'texto': commentController.text.trim(),
           'imagen': imageUrl,
-          'userId': user.uid,
-          'userName': userData?['nombre'] ?? "Sin nombre", // ✅ CORREGIDO
-          'userPhoto': userData?['foto'] ?? "",
+          'userId': currentUser!.uid, // ✅ SOLO ID
           'fecha': FieldValue.serverTimestamp(),
         });
 
@@ -84,125 +104,198 @@ class _PostCardState extends State<PostCard> {
     setState(() => imagenComentario = null);
   }
 
+  // 🔥 ELIMINAR POST
+  Future<void> eliminarPost() async {
+    await FirebaseFirestore.instance
+        .collection('grupos')
+        .doc(widget.grupoId)
+        .collection('posts')
+        .doc(widget.postId)
+        .delete();
+  }
+
+  void confirmarEliminarPost() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Eliminar publicación"),
+        content: const Text("¿Seguro que deseas eliminar esta publicación?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancelar"),
+          ),
+          TextButton(
+            onPressed: () {
+              eliminarPost();
+              Navigator.pop(context);
+            },
+            child: const Text("Eliminar", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.all(10),
-      child: Padding(
-        padding: const EdgeInsets.all(10),
+    final isOwner = currentUser!.uid == widget.data['userId'];
 
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 👤 USUARIO
-            Row(
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(widget.data['userId'])
+          .get(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox();
+        }
+
+        final userData = snapshot.data!.data() as Map<String, dynamic>?;
+
+        final nombre = userData?['nombre'] ?? "Sin nombre";
+        final foto = userData?['foto'] ?? "";
+
+        return Card(
+          margin: const EdgeInsets.all(10),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  backgroundImage:
-                      widget.data['userPhoto'] != null &&
-                          widget.data['userPhoto'] != ''
-                      ? NetworkImage(widget.data['userPhoto'])
-                      : null,
-                  child:
-                      (widget.data['userPhoto'] == null ||
-                          widget.data['userPhoto'] == '')
-                      ? const Icon(Icons.person)
-                      : null,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  widget.data['userName'] != null &&
-                          widget.data['userName'] != ''
-                      ? widget.data['userName']
-                      : "Sin nombre",
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
+                // 👤 HEADER DINÁMICO
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundImage: foto.isNotEmpty
+                          ? NetworkImage(foto)
+                          : null,
+                      child: foto.isEmpty ? const Icon(Icons.person) : null,
+                    ),
+                    const SizedBox(width: 10),
 
-            const SizedBox(height: 10),
-
-            // 🧾 TEXTO
-            if (widget.data['texto'] != null && widget.data['texto'] != '')
-              Text(widget.data['texto']),
-
-            // 🖼 IMAGEN
-            if (widget.data['imagen'] != null && widget.data['imagen'] != '')
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Image.network(widget.data['imagen']),
-              ),
-
-            const SizedBox(height: 10),
-
-            // 💬 COMENTARIOS
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('grupos')
-                  .doc(widget.grupoId)
-                  .collection('posts')
-                  .doc(widget.postId)
-                  .collection('comentarios')
-                  .orderBy('fecha')
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const SizedBox();
-
-                final comentarios = snapshot.data!.docs;
-
-                return Column(
-                  children: comentarios.map((doc) {
-                    final c = doc.data() as Map<String, dynamic>;
-
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundImage:
-                            c['userPhoto'] != null && c['userPhoto'] != ''
-                            ? NetworkImage(c['userPhoto'])
-                            : null,
-                        child: (c['userPhoto'] == null || c['userPhoto'] == '')
-                            ? const Icon(Icons.person)
-                            : null,
+                    Expanded(
+                      child: Text(
+                        nombre,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      title: Text(
-                        c['userName'] != null && c['userName'] != ''
-                            ? c['userName']
-                            : "Sin nombre",
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (c['texto'] != null && c['texto'] != '')
-                            Text(c['texto']),
-                          if (c['imagen'] != null && c['imagen'] != '')
-                            Image.network(c['imagen']),
+                    ),
+
+                    if (isOwner)
+                      PopupMenuButton(
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'eliminar',
+                            child: Text("Eliminar"),
+                          ),
                         ],
+                        onSelected: (value) {
+                          if (value == 'eliminar') {
+                            confirmarEliminarPost();
+                          }
+                        },
                       ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
+                  ],
+                ),
 
-            // ✍️ COMENTAR
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: commentController,
-                    decoration: const InputDecoration(hintText: "Responder..."),
+                const SizedBox(height: 10),
+
+                if (widget.data['texto'] != null) Text(widget.data['texto']),
+
+                if (widget.data['imagen'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Image.network(widget.data['imagen']),
                   ),
+
+                const SizedBox(height: 10),
+
+                // 💬 COMENTARIOS
+                StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('grupos')
+                      .doc(widget.grupoId)
+                      .collection('posts')
+                      .doc(widget.postId)
+                      .collection('comentarios')
+                      .orderBy('fecha')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) return const SizedBox();
+
+                    final comentarios = snapshot.data!.docs;
+
+                    return Column(
+                      children: comentarios.map((doc) {
+                        final c = doc.data() as Map<String, dynamic>;
+
+                        return FutureBuilder<DocumentSnapshot>(
+                          future: FirebaseFirestore.instance
+                              .collection('usuarios')
+                              .doc(c['userId'])
+                              .get(),
+                          builder: (context, snapUser) {
+                            if (!snapUser.hasData) return const SizedBox();
+
+                            final user =
+                                snapUser.data!.data() as Map<String, dynamic>?;
+
+                            final nombre = user?['nombre'] ?? "Sin nombre";
+                            final foto = user?['foto'] ?? "";
+
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundImage: foto.isNotEmpty
+                                    ? NetworkImage(foto)
+                                    : null,
+                                child: foto.isEmpty
+                                    ? const Icon(Icons.person)
+                                    : null,
+                              ),
+                              title: Text(nombre),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (c['texto'] != null) Text(c['texto']),
+                                  if (c['imagen'] != null)
+                                    Image.network(c['imagen']),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      }).toList(),
+                    );
+                  },
                 ),
-                IconButton(
-                  icon: const Icon(Icons.image),
-                  onPressed: seleccionarImagen,
+
+                // ✍️ COMENTAR
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: commentController,
+                        decoration: const InputDecoration(
+                          hintText: "Responder...",
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.image),
+                      onPressed: seleccionarImagen,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.send),
+                      onPressed: comentar,
+                    ),
+                  ],
                 ),
-                IconButton(icon: const Icon(Icons.send), onPressed: comentar),
               ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
