@@ -26,9 +26,8 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   final storageService = StorageService();
   final marketplaceService = MarketplaceService();
 
-  // 📸 SELECCIONAR DESDE GALERÍA
-  Future<void> pickFromGallery() async {
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+  Future<void> pickImage(ImageSource source) async {
+    final picked = await picker.pickImage(source: source);
 
     if (picked != null) {
       setState(() {
@@ -37,49 +36,37 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     }
   }
 
-  // 📷 TOMAR FOTO CON CÁMARA
-  Future<void> pickFromCamera() async {
-    final picked = await picker.pickImage(source: ImageSource.camera);
-
-    if (picked != null) {
-      setState(() {
-        image = File(picked.path);
-      });
-    }
-  }
-
-  // 🔥 MODAL PARA ELEGIR
   void showImagePickerOptions() {
     showModalBottomSheet(
       context: context,
-      builder: (_) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo),
-                title: const Text("Elegir de galería"),
-                onTap: () {
-                  Navigator.pop(context);
-                  pickFromGallery();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text("Tomar foto"),
-                onTap: () {
-                  Navigator.pop(context);
-                  pickFromCamera();
-                },
-              ),
-            ],
-          ),
-        );
-      },
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo),
+              title: const Text("Galería"),
+              onTap: () {
+                Navigator.pop(context);
+                pickImage(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text("Cámara"),
+              onTap: () {
+                Navigator.pop(context);
+                pickImage(ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  // 🚀 CREAR PRODUCTO
   Future<void> createProduct() async {
     if (nombreController.text.isEmpty || precioController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -113,15 +100,24 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Nuevo Producto")),
-
+      backgroundColor: const Color(0xFFF0F2F5),
+      appBar: AppBar(
+        title: const Text("Nuevo producto"),
+        actions: [
+          TextButton(
+            onPressed: createProduct,
+            child: const Text(
+              "Publicar",
+              style: TextStyle(color: Colors.green),
+            ),
+          )
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(15),
-
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 📸 IMAGEN
+            // 📸 IMAGEN PRO
             GestureDetector(
               onTap: showImagePickerOptions,
               child: Container(
@@ -129,7 +125,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: image == null
                     ? const Column(
@@ -141,7 +137,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                         ],
                       )
                     : ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(15),
                         child: Image.file(image!, fit: BoxFit.cover),
                       ),
               ),
@@ -149,51 +145,55 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
 
             const SizedBox(height: 20),
 
-            // 📝 NOMBRE
+            // 🔥 CAMPOS PRO
             TextField(
               controller: nombreController,
-              decoration: const InputDecoration(
-                labelText: "Nombre",
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: "Nombre del producto",
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
 
-            const SizedBox(height: 15),
+            const SizedBox(height: 10),
 
-            // 💰 PRECIO
             TextField(
               controller: precioController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: "Precio",
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: "Precio",
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
 
-            const SizedBox(height: 15),
+            const SizedBox(height: 10),
 
-            // 📄 DESCRIPCIÓN
             TextField(
               controller: descripcionController,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: "Descripción",
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: "Descripción",
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
 
-            const SizedBox(height: 25),
+            const SizedBox(height: 20),
 
-            // 🚀 BOTÓN
-            SizedBox(
-              width: double.infinity,
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      onPressed: createProduct,
-                      child: const Text("Publicar"),
-                    ),
-            ),
+            if (isLoading) const CircularProgressIndicator(),
           ],
         ),
       ),

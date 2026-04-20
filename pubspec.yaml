@@ -5,7 +5,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.3.0   # 🔥 CORREGIDO (evita incompatibilidades)
+  sdk: ^3.3.0
 
 dependencies:
   flutter:
@@ -13,7 +13,7 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
-  # 🔥 FIREBASE (DEBEN IR AQUÍ, NO EN dev_dependencies)
+  # 🔥 FIREBASE
   firebase_core: ^4.6.0
   firebase_auth: ^6.3.0
   cloud_firestore: ^6.2.0
@@ -22,11 +22,14 @@ dependencies:
   # 📸 IMÁGENES
   image_picker: ^1.0.7
 
-  # 📁 ARCHIVOS (VERSIÓN COMPATIBLE)
-  file_picker: ^11.0.2   # 🔥 IMPORTANTE: NO usar 5.5.0
+  # 📁 ARCHIVOS
+  file_picker: ^11.0.2
 
-  # 🔗 ABRIR ARCHIVOS
+  # 🔗 ABRIR LINKS
   url_launcher: ^6.2.5
+
+  # 🎥 VIDEO (🔥 AQUÍ ES DONDE VA)
+  video_player: ^2.8.2
 
 dev_dependencies:
   flutter_test:

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// 🔥 IMPORTS DEL CHAT
 import '../../services/chat_service.dart';
 import '../chat/chat_screen.dart';
 
@@ -26,110 +25,185 @@ class ProductDetailScreen extends StatelessWidget {
     String uid = productData['uid'] ?? '';
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF0F2F5),
+
       appBar: AppBar(
-        title: const Text("Detalle del producto"),
-        centerTitle: true,
+        title: const Text("Producto"),
+        elevation: 0,
+      ),
+
+      // 🔥 BOTÓN FIJO ABAJO (UX PRO)
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(12),
+        child: user != null && user.uid != uid
+            ? ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.chat),
+                label: const Text(
+                  "Contactar vendedor",
+                  style: TextStyle(fontSize: 16),
+                ),
+                onPressed: () async {
+                  try {
+                    final chatService = ChatService();
+
+                    String chatId = await chatService.createOrGetChat(uid);
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(chatId: chatId),
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Error: $e")),
+                    );
+                  }
+                },
+              )
+            : user != null && user.uid == uid
+                ? ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.delete),
+                    label: const Text("Eliminar producto"),
+                    onPressed: () {
+                      Navigator.pop(context, true);
+                    },
+                  )
+                : const SizedBox(),
       ),
 
       body: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🖼 IMAGEN
-            if (imagen.isNotEmpty)
-              Image.network(
-                imagen,
-                width: double.infinity,
-                height: 250,
-                fit: BoxFit.cover,
-              ),
+            // 🔥 IMAGEN HERO
+            Stack(
+              children: [
+                imagen.isNotEmpty
+                    ? Image.network(
+                        imagen,
+                        width: double.infinity,
+                        height: 300,
+                        fit: BoxFit.cover,
+                      )
+                    : Container(
+                        height: 300,
+                        color: Colors.grey[300],
+                        child: const Center(
+                          child: Icon(Icons.image, size: 60),
+                        ),
+                      ),
 
-            Padding(
-              padding: const EdgeInsets.all(15),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 🛍 NOMBRE
-                  Text(
-                    nombre,
+                // 🔥 OVERLAY GRADIENT (PRO)
+                Container(
+                  height: 300,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.center,
+                      colors: [
+                        Colors.black45,
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 💰 PRECIO SOBRE IMAGEN
+                Positioned(
+                  bottom: 15,
+                  left: 15,
+                  child: Text(
+                    "\$$precio",
                     style: const TextStyle(
-                      fontSize: 22,
+                      color: Colors.white,
+                      fontSize: 26,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                ),
+              ],
+            ),
 
-                  const SizedBox(height: 10),
-
-                  // 💰 PRECIO
-                  Text(
-                    "💰 $precio",
-                    style: const TextStyle(fontSize: 18, color: Colors.green),
+            // 🔥 CONTENIDO EN TARJETA
+            Transform.translate(
+              offset: const Offset(0, -20),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(25),
                   ),
-
-                  const SizedBox(height: 15),
-
-                  // 📝 DESCRIPCIÓN
-                  const Text(
-                    "Descripción",
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 5),
-
-                  Text(descripcion),
-
-                  const SizedBox(height: 30),
-
-                  // 💬 BOTÓN CONTACTAR (CHAT REAL 🔥)
-                  if (user != null && user.uid != uid)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        icon: const Icon(Icons.chat),
-                        label: const Text("Contactar vendedor"),
-                        onPressed: () async {
-                          try {
-                            final chatService = ChatService();
-
-                            // 🔥 CREAR OBTENER CHAT
-                            String chatId = await chatService.createOrGetChat(
-                              uid,
-                            );
-
-                            // 🚀 IR AL CHAT
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ChatScreen(chatId: chatId),
-                              ),
-                            );
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("Error al abrir chat: $e"),
-                              ),
-                            );
-                          }
-                        },
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 🛍 NOMBRE
+                    Text(
+                      nombre,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
 
-                  // 🗑 SI ES EL DUEÑO
-                  if (user != null && user.uid == uid)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                        ),
-                        icon: const Icon(Icons.delete),
-                        label: const Text("Eliminar producto"),
-                        onPressed: () {
-                          Navigator.pop(context, true);
-                        },
+                    const SizedBox(height: 10),
+
+                    // 💰 PRECIO (REFUERZO)
+                    Text(
+                      "\$$precio",
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: Colors.green[700],
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                ],
+
+                    const SizedBox(height: 20),
+
+                    // 📄 DIVIDER
+                    const Divider(),
+
+                    const SizedBox(height: 10),
+
+                    // 📝 TITULO DESCRIPCIÓN
+                    const Text(
+                      "Descripción",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // 📝 TEXTO
+                    Text(
+                      descripcion.isNotEmpty ? descripcion : "Sin descripción",
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        height: 1.4,
+                      ),
+                    ),
+
+                    const SizedBox(height: 80), // espacio para botón
+                  ],
+                ),
               ),
             ),
           ],

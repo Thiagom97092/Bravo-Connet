@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../services/chat_service.dart';
 import 'chat_screen.dart';
-import 'search_user_screen.dart'; // ✅ NUEVO
+import 'search_user_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
   const ChatListScreen({super.key});
@@ -14,12 +14,14 @@ class ChatListScreen extends StatelessWidget {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
-
+      backgroundColor: const Color(0xFFF0F2F5),
       appBar: AppBar(
-        title: const Text("Chats"),
+        title: const Text(
+          "Chats",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        elevation: 0,
         actions: [
-          // 🔍 BUSCAR USUARIOS
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
@@ -31,26 +33,32 @@ class ChatListScreen extends StatelessWidget {
           ),
         ],
       ),
-
       body: StreamBuilder<QuerySnapshot>(
+        // 🔥 ORDEN CORRECTO DESDE FIRESTORE
         stream: ChatService().getUserChats(),
-
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final chats = snapshot.data!.docs;
+          var chats = snapshot.data!.docs;
 
           if (chats.isEmpty) {
             return const Center(child: Text("No tienes chats aún"));
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: chats.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+          // 🔥 ORDENAR POR ÚLTIMO MENSAJE (IMPORTANTE)
+          chats.sort((a, b) {
+            final t1 = a['lastTimestamp'];
+            final t2 = b['lastTimestamp'];
 
+            if (t1 == null || t2 == null) return 0;
+            return t2.compareTo(t1); // 🔥 MÁS RECIENTE ARRIBA
+          });
+
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            itemCount: chats.length,
             itemBuilder: (context, index) {
               final chat = chats[index];
               final data = chat.data() as Map<String, dynamic>;
@@ -59,7 +67,7 @@ class ChatListScreen extends StatelessWidget {
               participants.remove(currentUser!.uid);
               final otherUserId = participants.first;
 
-              // 🕒 HORA
+              // 🕒 HORA FORMATEADA
               String hora = "";
               if (data['lastTimestamp'] != null) {
                 final date = (data['lastTimestamp'] as Timestamp).toDate();
@@ -67,10 +75,11 @@ class ChatListScreen extends StatelessWidget {
                     "${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
               }
 
-              // 🔴 NO LEÍDOS
+              // 🔴 CONTADOR NO LEÍDOS
               int unread = 0;
-              if (data['unreadCount'] != null) {
-                unread = data['unreadCount'][currentUser.uid] ?? 0;
+              if (data['unreadCount'] != null &&
+                  data['unreadCount'][currentUser.uid] != null) {
+                unread = data['unreadCount'][currentUser.uid];
               }
 
               return FutureBuilder<DocumentSnapshot>(
@@ -78,21 +87,23 @@ class ChatListScreen extends StatelessWidget {
                     .collection('usuarios')
                     .doc(otherUserId)
                     .get(),
-
                 builder: (context, userSnapshot) {
                   if (!userSnapshot.hasData) {
                     return const SizedBox();
                   }
 
                   final userData =
-                      userSnapshot.data!.data() as Map<String, dynamic>;
+                      userSnapshot.data!.data() as Map<String, dynamic>?;
+
+                  if (userData == null) return const SizedBox();
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(18),
-
                       onTap: () {
                         Navigator.push(
                           context,
@@ -101,10 +112,8 @@ class ChatListScreen extends StatelessWidget {
                           ),
                         );
                       },
-
                       child: Container(
                         padding: const EdgeInsets.all(14),
-
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(18),
@@ -116,19 +125,16 @@ class ChatListScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-
                         child: Row(
                           children: [
-                            // 🖼 FOTO
+                            // 👤 FOTO
                             CircleAvatar(
                               radius: 28,
-                              backgroundImage:
-                                  userData['foto'] != null &&
+                              backgroundImage: userData['foto'] != null &&
                                       userData['foto'] != ''
                                   ? NetworkImage(userData['foto'])
                                   : null,
-                              child:
-                                  userData['foto'] == null ||
+                              child: userData['foto'] == null ||
                                       userData['foto'] == ''
                                   ? const Icon(Icons.person)
                                   : null,
@@ -146,10 +152,13 @@ class ChatListScreen extends StatelessWidget {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(
-                                        userData['nombre'] ?? "Usuario",
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
+                                      Expanded(
+                                        child: Text(
+                                          userData['nombre'] ?? "Usuario",
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                       Text(
@@ -164,7 +173,7 @@ class ChatListScreen extends StatelessWidget {
 
                                   const SizedBox(height: 5),
 
-                                  // 💬 MENSAJE + 🔴 CONTADOR
+                                  // 💬 MENSAJE + CONTADOR
                                   Row(
                                     children: [
                                       Expanded(
@@ -172,14 +181,22 @@ class ChatListScreen extends StatelessWidget {
                                           data['lastMessage'] ?? "",
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: unread > 0
+                                                ? Colors.black
+                                                : Colors.grey[700],
+                                            fontWeight: unread > 0
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
+                                          ),
                                         ),
                                       ),
 
+                                      // 🔴 BADGE
                                       if (unread > 0)
                                         Container(
-                                          margin: const EdgeInsets.only(
-                                            left: 8,
-                                          ),
+                                          margin:
+                                              const EdgeInsets.only(left: 8),
                                           padding: const EdgeInsets.all(6),
                                           decoration: const BoxDecoration(
                                             color: Colors.green,
@@ -190,6 +207,7 @@ class ChatListScreen extends StatelessWidget {
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 12,
+                                              fontWeight: FontWeight.bold,
                                             ),
                                           ),
                                         ),

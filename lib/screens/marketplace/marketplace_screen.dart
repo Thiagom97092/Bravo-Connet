@@ -15,10 +15,16 @@ class MarketplaceScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Marketplace"), centerTitle: true),
-
-      // ➕ BOTÓN CREAR PRODUCTO
+      backgroundColor: const Color(0xFFF0F2F5),
+      appBar: AppBar(
+        title: const Text(
+          "Marketplace",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        elevation: 0,
+      ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.green[700],
         child: const Icon(Icons.add),
         onPressed: () {
           Navigator.push(
@@ -27,45 +33,46 @@ class MarketplaceScreen extends StatelessWidget {
           );
         },
       ),
-
-      // 📡 STREAM DE PRODUCTOS
       body: StreamBuilder<QuerySnapshot>(
         stream: service.getProducts(),
         builder: (context, snapshot) {
-          // ⏳ LOADING
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // ❌ ERROR
-          if (snapshot.hasError) {
-            return const Center(child: Text("Error cargando productos"));
-          }
-
-          // 📦 VALIDACIÓN DE DATA
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text("No hay productos"));
+            return const Center(
+              child: Text(
+                "No hay productos",
+                style: TextStyle(color: Colors.grey),
+              ),
+            );
           }
 
           final products = snapshot.data!.docs;
 
-          // 📋 LISTA
-          return ListView.builder(
+          // 🔥 GRID PRO (tipo marketplace real)
+          return GridView.builder(
+            padding: const EdgeInsets.all(10),
             itemCount: products.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2, // 🔥 2 columnas
+              childAspectRatio: 0.75,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
             itemBuilder: (context, index) {
               var product = products[index];
 
-              // 🔥 CORRECCIÓN DEL ERROR NULL
-              var data = product.data();
-              if (data == null) return const SizedBox();
+              if (product.data() == null) return const SizedBox();
 
-              final productData = data as Map<String, dynamic>;
+              final data = product.data() as Map<String, dynamic>;
 
-              String nombre = productData['nombre'] ?? '';
-              String precio = productData['precio'] ?? '';
-              String descripcion = productData['descripcion'] ?? '';
-              String imagen = productData['imagen'] ?? '';
-              String uid = productData['uid'] ?? '';
+              String nombre = data['nombre'] ?? '';
+              String precio = data['precio'] ?? '';
+              String descripcion = data['descripcion'] ?? '';
+              String imagen = data['imagen'] ?? '';
+              String uid = data['uid'] ?? '';
 
               return GestureDetector(
                 onTap: () async {
@@ -73,87 +80,94 @@ class MarketplaceScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) => ProductDetailScreen(
-                        productData: productData,
+                        productData: data,
                         productId: product.id,
                       ),
                     ),
                   );
 
-                  // 🔥 SI SE ELIMINÓ DESDE DETALLE
                   if (deleted == true) {
                     await service.deleteProduct(product.id);
                   }
                 },
-
-                child: Card(
-                  margin: const EdgeInsets.all(10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black12,
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                  elevation: 3,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // 🖼 IMAGEN
-                      if (imagen.isNotEmpty)
-                        ClipRRect(
+                      Expanded(
+                        child: ClipRRect(
                           borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(12),
+                            top: Radius.circular(15),
                           ),
-                          child: Image.network(
-                            imagen,
-                            height: 200,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                          ),
+                          child: imagen.isNotEmpty
+                              ? Image.network(
+                                  imagen,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                )
+                              : Container(
+                                  color: Colors.grey[300],
+                                  child: const Center(
+                                    child: Icon(Icons.image, size: 40),
+                                  ),
+                                ),
                         ),
+                      ),
 
                       // 📄 INFO
                       Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(10),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 🛍 NOMBRE
                             Text(
                               nombre,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
 
                             const SizedBox(height: 5),
 
-                            // 💰 PRECIO
                             Text(
-                              "💰 $precio",
-                              style: const TextStyle(
+                              "\$$precio",
+                              style: TextStyle(
+                                color: Colors.green[700],
+                                fontWeight: FontWeight.bold,
                                 fontSize: 16,
-                                color: Colors.green,
                               ),
                             ),
 
                             const SizedBox(height: 5),
 
-                            // 📝 DESCRIPCIÓN (CORTA)
                             Text(
                               descripcion,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: Colors.grey[600]),
                             ),
 
-                            const SizedBox(height: 10),
-
-                            // 🗑 ELIMINAR (SOLO SI ES TUYO)
+                            // 🗑 SOLO SI ES TUYO
                             if (user != null && user.uid == uid)
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    color: Colors.red,
-                                  ),
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.red),
                                   onPressed: () async {
                                     await service.deleteProduct(product.id);
 

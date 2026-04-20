@@ -3,13 +3,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class PostService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // 🔥 CREAR POST
+  // 🔥 CREAR POST (ACTUALIZADO)
   Future<void> createPost({
     required String uid,
     required String nombre,
     required String? fotoUsuario,
     required String contenido,
     String? imagenPost,
+    String? videoPost,
   }) async {
     await _db.collection('posts').add({
       'uid': uid,
@@ -17,7 +18,8 @@ class PostService {
       'fotoUsuario': fotoUsuario ?? '',
       'contenido': contenido,
       'imagenPost': imagenPost ?? '',
-      'fecha': FieldValue.serverTimestamp(), // 🔥 MEJORADO
+      'videoPost': videoPost ?? '',
+      'fecha': FieldValue.serverTimestamp(),
       'likes': [],
     });
   }
@@ -57,7 +59,7 @@ class PostService {
     }
   }
 
-  // 💬 COMENTARIOS
+  // 💬 🔥 AGREGAR COMENTARIO (AQUÍ ESTABA EL ERROR)
   Future<void> addComment({
     required String postId,
     required String uid,
@@ -72,6 +74,7 @@ class PostService {
     });
   }
 
+  // 💬 🔥 OBTENER COMENTARIOS (AQUÍ ESTABA EL ERROR)
   Stream<QuerySnapshot> getComments(String postId) {
     return _db
         .collection('posts')
@@ -81,7 +84,7 @@ class PostService {
         .snapshots();
   }
 
-  // 🗑 ELIMINAR
+  // 🗑 ELIMINAR POST
   Future<void> deletePost(String postId) async {
     await _db.collection('posts').doc(postId).delete();
   }

@@ -21,7 +21,6 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ChatService _chatService = ChatService();
-
   final ImagePicker _picker = ImagePicker();
 
   User? user;
@@ -36,27 +35,22 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // 🔥 SUBIR IMAGEN
   Future<String> uploadImage(File file) async {
     final ref = FirebaseStorage.instance.ref().child(
           'chat_images/${DateTime.now().millisecondsSinceEpoch}.jpg',
         );
-
     await ref.putFile(file);
     return await ref.getDownloadURL();
   }
 
-  // 🔥 SUBIR ARCHIVO
   Future<String> uploadFile(File file) async {
     final ref = FirebaseStorage.instance.ref().child(
           'chat_files/${DateTime.now().millisecondsSinceEpoch}',
         );
-
     await ref.putFile(file);
     return await ref.getDownloadURL();
   }
 
-  // 🔥 CÁMARA
   Future<void> pickFromCamera() async {
     final picked = await _picker.pickImage(source: ImageSource.camera);
 
@@ -70,7 +64,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // 🔥 GALERÍA
   Future<void> pickFromGallery() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
 
@@ -84,7 +77,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // 🔥 ARCHIVO (CORREGIDO)
   Future<void> pickFile() async {
     FilePickerResult? result = await FilePicker.pickFiles();
 
@@ -139,17 +131,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> openFile(String url) async {
     final Uri uri = Uri.parse(url);
-
-    final success = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
-
-    if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No se pudo abrir el archivo")),
-      );
-    }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Widget buildMessageContent(String type, Map<String, dynamic> data) {
@@ -159,7 +141,6 @@ class _ChatScreenState extends State<ChatScreen> {
           onTap: () => openFile(data['fileUrl']),
           child: Image.network(data['fileUrl'], height: 200),
         );
-
       case 'file':
         return GestureDetector(
           onTap: () => openFile(data['fileUrl']),
@@ -167,13 +148,10 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               const Icon(Icons.insert_drive_file),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text(data['fileName'] ?? "Archivo"),
-              ),
+              Expanded(child: Text(data['fileName'] ?? "Archivo")),
             ],
           ),
         );
-
       default:
         return Text(data['text'] ?? '');
     }
@@ -188,41 +166,30 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Chat")),
+      backgroundColor: const Color(0xFFF0F2F5),
+      appBar: AppBar(title: const Text("Chat"), elevation: 0),
       body: Column(
         children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _chatService.getMessages(widget.chatId),
               builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Text("Error: ${snapshot.error}"),
-                  );
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
                 var messages = snapshot.data!.docs;
 
-                if (messages.isEmpty) {
-                  return const Center(
-                    child: Text("No hay mensajes aún"),
-                  );
-                }
-
                 messages.sort((a, b) {
                   final t1 = a['timestamp'];
                   final t2 = b['timestamp'];
-
                   if (t1 == null || t2 == null) return 0;
                   return t2.compareTo(t1);
                 });
 
                 return ListView.builder(
                   reverse: true,
+                  padding: const EdgeInsets.all(10),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final data = messages[index].data() as Map<String, dynamic>;
@@ -234,13 +201,27 @@ class _ChatScreenState extends State<ChatScreen> {
                       alignment:
                           isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
-                        margin: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.symmetric(vertical: 5),
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isMe ? Colors.green : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(12),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.7,
                         ),
-                        child: buildMessageContent(type, data),
+                        decoration: BoxDecoration(
+                          color: isMe ? Colors.green.shade600 : Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 4,
+                            )
+                          ],
+                        ),
+                        child: DefaultTextStyle(
+                          style: TextStyle(
+                            color: isMe ? Colors.white : Colors.black,
+                          ),
+                          child: buildMessageContent(type, data),
+                        ),
                       ),
                     );
                   },
@@ -248,39 +229,54 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: showOptions,
-                ),
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: "Escribe un mensaje...",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(20),
+
+          // INPUT
+          SafeArea(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)],
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.add, color: Colors.green),
+                    onPressed: showOptions,
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      decoration: InputDecoration(
+                        hintText: "Escribe un mensaje...",
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(25),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: () async {
-                    if (_controller.text.trim().isEmpty) return;
+                  const SizedBox(width: 5),
+                  CircleAvatar(
+                    backgroundColor: Colors.green,
+                    child: IconButton(
+                      icon: const Icon(Icons.send, color: Colors.white),
+                      onPressed: () async {
+                        if (_controller.text.trim().isEmpty) return;
 
-                    await _chatService.sendMessage(
-                      widget.chatId,
-                      _controller.text.trim(),
-                    );
+                        await _chatService.sendMessage(
+                          widget.chatId,
+                          _controller.text.trim(),
+                        );
 
-                    _controller.clear();
-                  },
-                ),
-              ],
+                        _controller.clear();
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],

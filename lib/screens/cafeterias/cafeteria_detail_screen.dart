@@ -15,7 +15,6 @@ class CafeteriaDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(cafeteriaData['nombre'] ?? "Cafetería")),
-
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -48,9 +47,7 @@ class CafeteriaDetailScreen extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
                   Text("📍 ${cafeteriaData['bloque'] ?? ""}"),
                   Text("⏰ ${cafeteriaData['horario'] ?? ""}"),
                 ],
@@ -67,7 +64,6 @@ class CafeteriaDetailScreen extends StatelessWidget {
                 child: ElevatedButton.icon(
                   icon: const Icon(Icons.restaurant_menu),
                   label: const Text("Ver Menú"),
-
                   onPressed: () {
                     // 🔥 PRUEBA CLAVE
                     print("CAFETERIA ID: $cafeteriaId");

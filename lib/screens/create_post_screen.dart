@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:video_player/video_player.dart';
 
 import '../services/post_service.dart';
 import '../services/storage_service.dart';
@@ -18,6 +19,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _contenidoController = TextEditingController();
 
   File? _imageFile;
+  File? _videoFile;
+  VideoPlayerController? _videoController;
 
   final PostService _postService = PostService();
   final StorageService _storageService = StorageService();
@@ -25,49 +28,87 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   final ImagePicker _picker = ImagePicker();
 
-  // 📸 GALERÍA
-  Future<void> _pickFromGallery() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
+  // 📸 IMAGEN
+  Future<void> _pickImage(ImageSource source) async {
+    final picked = await _picker.pickImage(source: source);
 
     if (picked != null) {
       setState(() {
         _imageFile = File(picked.path);
+        _videoFile = null;
       });
     }
   }
 
-  // 📷 CÁMARA
-  Future<void> _pickFromCamera() async {
-    final picked = await _picker.pickImage(source: ImageSource.camera);
+  // 🎥 VIDEO
+  Future<void> _pickVideo(ImageSource source) async {
+    final picked = await _picker.pickVideo(source: source);
 
     if (picked != null) {
-      setState(() {
-        _imageFile = File(picked.path);
-      });
+      _initVideo(File(picked.path));
     }
   }
 
-  // 🔥 MODAL (como Facebook / Instagram)
-  void _showImageOptions() {
+  void _initVideo(File file) {
+    _videoController?.dispose();
+
+    _videoController = VideoPlayerController.file(file)
+      ..initialize().then((_) {
+        setState(() {
+          _videoFile = file;
+          _imageFile = null;
+        });
+        _videoController!.play();
+      });
+  }
+
+  // 🔥 MODAL
+  void _showMediaOptions() {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => SafeArea(
         child: Wrap(
           children: [
+            const Padding(
+              padding: EdgeInsets.all(15),
+              child: Text(
+                "Selecciona contenido",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo),
+              title: const Text("Imagen (Galería)"),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.camera_alt),
               title: const Text("Tomar foto"),
               onTap: () {
                 Navigator.pop(context);
-                _pickFromCamera();
+                _pickImage(ImageSource.camera);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo),
-              title: const Text("Elegir de galería"),
+              leading: const Icon(Icons.video_library),
+              title: const Text("Video (Galería)"),
               onTap: () {
                 Navigator.pop(context);
-                _pickFromGallery();
+                _pickVideo(ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.videocam),
+              title: const Text("Grabar video"),
+              onTap: () {
+                Navigator.pop(context);
+                _pickVideo(ImageSource.camera);
               },
             ),
           ],
@@ -79,108 +120,162 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   // 🚀 CREAR POST
   Future<void> _createPost() async {
     final user = FirebaseAuth.instance.currentUser;
-
     if (user == null) return;
 
     String imageUrl = '';
+    String videoUrl = '';
 
     if (_imageFile != null) {
       imageUrl = await _storageService.uploadImage(_imageFile!, "posts");
     }
 
-    String nombre = 'Usuario';
-    String foto = '';
-
-    try {
-      final userData = await _firestoreService.getUser(user.uid);
-
-      if (userData != null) {
-        nombre = userData['nombre'] ?? 'Usuario';
-        foto = userData['foto'] ?? '';
-      }
-    } catch (e) {
-      print("Error obteniendo usuario: $e");
+    if (_videoFile != null) {
+      videoUrl = await _storageService.uploadImage(_videoFile!, "videos");
     }
+
+    final userData = await _firestoreService.getUser(user.uid);
 
     await _postService.createPost(
       uid: user.uid,
-      nombre: nombre,
-      fotoUsuario: foto,
+      nombre: userData?['nombre'] ?? 'Usuario',
+      fotoUsuario: userData?['foto'] ?? '',
       contenido: _contenidoController.text.trim(),
       imagenPost: imageUrl,
+      videoPost: videoUrl,
     );
 
     Navigator.pop(context);
   }
 
   @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final bool canPost = _contenidoController.text.trim().isNotEmpty ||
+        _imageFile != null ||
+        _videoFile != null;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Crear publicación")),
-
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ✍️ TEXTO
-            TextField(
-              controller: _contenidoController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: "¿Qué estás pensando?",
-                border: OutlineInputBorder(),
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        title: const Text("Crear publicación"),
+        centerTitle: true,
+        actions: [
+          TextButton(
+            onPressed: canPost ? _createPost : null,
+            child: Text(
+              "Publicar",
+              style: TextStyle(
+                color: canPost ? Colors.green[700] : Colors.grey,
+                fontWeight: FontWeight.bold,
               ),
             ),
-
-            const SizedBox(height: 15),
-
-            // 🖼 PREVIEW IMAGEN
-            if (_imageFile != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: Image.file(_imageFile!, height: 180),
-              ),
-
-            const SizedBox(height: 15),
-
-            // 📸 BOTÓN IMAGEN
-            Row(
+          )
+        ],
+      ),
+      body: Column(
+        children: [
+          // 🔥 INPUT CARD
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(15),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ElevatedButton.icon(
-                  onPressed: _showImageOptions,
-                  icon: const Icon(Icons.image),
-                  label: const Text("Agregar imagen"),
+                const CircleAvatar(
+                  radius: 22,
+                  backgroundColor: Colors.grey,
+                  child: Icon(Icons.person, color: Colors.white),
                 ),
-
                 const SizedBox(width: 10),
-
-                // ❌ QUITAR IMAGEN
-                if (_imageFile != null)
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.red),
-                    onPressed: () {
-                      setState(() {
-                        _imageFile = null;
-                      });
-                    },
+                Expanded(
+                  child: TextField(
+                    controller: _contenidoController,
+                    maxLines: null,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      hintText: "¿Qué estás pensando?",
+                      border: InputBorder.none,
+                    ),
                   ),
+                ),
               ],
             ),
+          ),
 
-            const Spacer(),
+          const SizedBox(height: 10),
 
-            // 🚀 PUBLICAR
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _createPost,
-                child: const Text("Publicar"),
+          // 🔥 PREVIEW
+          if (_imageFile != null || _videoFile != null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: Colors.black,
+              ),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: _imageFile != null
+                        ? Image.file(_imageFile!)
+                        : AspectRatio(
+                            aspectRatio: _videoController!.value.aspectRatio,
+                            child: VideoPlayer(_videoController!),
+                          ),
+                  ),
+
+                  // ❌ BOTÓN CERRAR
+                  Positioned(
+                    right: 10,
+                    top: 10,
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _imageFile = null;
+                          _videoFile = null;
+                          _videoController?.dispose();
+                        });
+                      },
+                      child: const CircleAvatar(
+                        backgroundColor: Colors.black54,
+                        child: Icon(Icons.close, color: Colors.white),
+                      ),
+                    ),
+                  )
+                ],
               ),
             ),
-          ],
-        ),
+
+          const Spacer(),
+
+          // 🔥 BOTÓN GRANDE
+          Padding(
+            padding: const EdgeInsets.all(15),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green[700],
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                onPressed: _showMediaOptions,
+                icon: const Icon(Icons.add_photo_alternate),
+                label: const Text(
+                  "Agregar foto o video",
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
