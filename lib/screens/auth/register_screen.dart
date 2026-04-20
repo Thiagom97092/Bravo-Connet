@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterScreen extends StatelessWidget {
   RegisterScreen({super.key});
@@ -12,31 +13,86 @@ class RegisterScreen extends StatelessWidget {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
 
-  void register(BuildContext context) async {
-    try {
-      var user = await _authService.register(
-        emailController.text.trim(),
-        passwordController.text.trim(),
-      );
+  // 🔥 DETECTAR ROL AUTOMÁTICO
+  String detectarRol(String email) {
+    final correo = email.split('@')[0];
 
-      if (user != null) {
+    final tieneNumeros = RegExp(r'\d').hasMatch(correo);
+
+    if (tieneNumeros) {
+      return "estudiante";
+    } else {
+      return "personal"; // incluye psicólogos/docentes
+    }
+  }
+
+  void register(BuildContext context) async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+    final nombre = nombreController.text.trim();
+
+    // 🔥 VALIDACIÓN
+    if (email.isEmpty || password.isEmpty || nombre.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Completa todos los campos")),
+      );
+      return;
+    }
+
+    // 🔥 VALIDAR DOMINIO INSTITUCIONAL
+    if (!email.endsWith("@pascualbravo.edu.co")) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Usa tu correo institucional")),
+      );
+      return;
+    }
+
+    try {
+      final result = await _authService.register(email, password);
+
+      if (result != null) {
+        final user = result['user'];
+
+        // 🔥 DETECTAR ROL
+        final rol = detectarRol(email);
+
+        // 🔥 GUARDAR USUARIO
         await _firestoreService.saveUser(
           uid: user.uid,
-          email: emailController.text.trim(),
-          nombre: nombreController.text.trim(),
-          rol: "usuario",
+          email: email,
+          nombre: nombre,
+          rol: rol,
         );
 
+        // 🔥 SI ES PERSONAL → CREAR EN PSICÓLOGOS
+        if (rol == "personal") {
+          await FirebaseFirestore.instance
+              .collection('psicologos')
+              .doc(user.uid)
+              .set({
+            'nombre': nombre,
+            'email': email,
+            'foto': '',
+            'especialidad': 'Psicología',
+            'activo': true,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Usuario registrado correctamente")),
+          SnackBar(content: Text("Registrado como $rol ✅")),
         );
 
         Navigator.pop(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Error en el registro")),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
     }
   }
 
@@ -62,7 +118,7 @@ class RegisterScreen extends StatelessWidget {
             TextField(
               controller: emailController,
               decoration: const InputDecoration(
-                labelText: "Correo",
+                labelText: "Correo institucional",
                 border: OutlineInputBorder(),
               ),
             ),
@@ -79,7 +135,7 @@ class RegisterScreen extends StatelessWidget {
             ),
             const SizedBox(height: 25),
 
-            // 🔥 Botón registrar
+            // 🔥 BOTÓN
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

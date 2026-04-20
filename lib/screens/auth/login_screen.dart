@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import '../main_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -16,11 +17,15 @@ class LoginScreen extends StatelessWidget {
     );
 
     if (user != null) {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      ScaffoldMessenger.of(
+      // 🔥 IR DIRECTO AL FEED (MainScreen)
+      Navigator.pushReplacement(
         context,
-      ).showSnackBar(const SnackBar(content: Text("Error al iniciar sesión")));
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error al iniciar sesión")),
+      );
     }
   }
 
@@ -40,7 +45,6 @@ class LoginScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 15),
-
             TextField(
               controller: passwordController,
               decoration: const InputDecoration(
@@ -50,7 +54,6 @@ class LoginScreen extends StatelessWidget {
               obscureText: true,
             ),
             const SizedBox(height: 20),
-
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -58,7 +61,6 @@ class LoginScreen extends StatelessWidget {
                 child: const Text("Iniciar Sesión"),
               ),
             ),
-
             TextButton(
               onPressed: () {
                 Navigator.push(

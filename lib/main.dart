@@ -6,14 +6,15 @@ import 'firebase_options.dart';
 
 // Pantallas
 import 'screens/auth/login_screen.dart';
-import 'screens/home/home_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   runApp(const BravoConnetApp());
 }
@@ -28,10 +29,10 @@ class BravoConnetApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.green),
 
-      // 🔥 RUTAS
+      // 🔥 RUTAS LIMPIAS
       routes: {
         '/login': (context) => LoginScreen(),
-        '/home': (context) => const HomeScreen(),
+        '/main': (context) => const MainScreen(),
         '/profile': (context) => const ProfileScreen(),
       },
 
@@ -49,7 +50,7 @@ class AuthWrapper extends StatelessWidget {
     final User? user = FirebaseAuth.instance.currentUser;
 
     if (user != null) {
-      return const MainScreen(); // 🔥 CAMBIO AQUÍ
+      return const MainScreen(); // 🔥 SIEMPRE AL FEED
     } else {
       return LoginScreen();
     }

@@ -23,7 +23,7 @@ dependencies:
   image_picker: ^1.0.7
 
   # 📁 ARCHIVOS (VERSIÓN COMPATIBLE)
-  file_picker: ^10.3.10   # 🔥 IMPORTANTE: NO usar 5.5.0
+  file_picker: ^11.0.2   # 🔥 IMPORTANTE: NO usar 5.5.0
 
   # 🔗 ABRIR ARCHIVOS
   url_launcher: ^6.2.5

@@ -21,22 +21,19 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ChatService _chatService = ChatService();
-  final user = FirebaseAuth.instance.currentUser;
 
   final ImagePicker _picker = ImagePicker();
+
+  User? user;
 
   @override
   void initState() {
     super.initState();
-    _chatService.markAsRead(widget.chatId);
-  }
+    user = FirebaseAuth.instance.currentUser;
 
-  // 🔥 STREAM GLOBAL DEL USUARIO
-  Stream<DocumentSnapshot> getUserStream() {
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(user!.uid)
-        .snapshots();
+    if (user != null) {
+      _chatService.markAsRead(widget.chatId);
+    }
   }
 
   // 🔥 SUBIR IMAGEN
@@ -59,7 +56,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return await ref.getDownloadURL();
   }
 
-  // 📷 CÁMARA
+  // 🔥 CÁMARA
   Future<void> pickFromCamera() async {
     final picked = await _picker.pickImage(source: ImageSource.camera);
 
@@ -73,7 +70,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // 🖼 GALERÍA
+  // 🔥 GALERÍA
   Future<void> pickFromGallery() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery);
 
@@ -87,11 +84,11 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // 📎 ARCHIVOS
+  // 🔥 ARCHIVO (CORREGIDO)
   Future<void> pickFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    FilePickerResult? result = await FilePicker.pickFiles();
 
-    if (result != null) {
+    if (result != null && result.files.single.path != null) {
       File file = File(result.files.single.path!);
 
       final url = await uploadFile(file);
@@ -140,23 +137,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // 🔥 ENVÍO CON DATOS ACTUALIZADOS
-  Future<void> sendMessage(Map<String, dynamic> userData) async {
-    if (_controller.text.trim().isEmpty) return;
-
-    await _chatService.sendMessage(
-      widget.chatId,
-      _controller.text.trim(),
-      {
-        'nombre': userData['nombre'],
-        'foto': userData['foto'],
-      },
-    );
-
-    _controller.clear();
-  }
-
-  // 🔥 ABRIR ARCHIVO
   Future<void> openFile(String url) async {
     final Uri uri = Uri.parse(url);
 
@@ -165,105 +145,14 @@ class _ChatScreenState extends State<ChatScreen> {
       mode: LaunchMode.externalApplication,
     );
 
-    if (!success) {
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("No se pudo abrir el archivo")),
       );
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: getUserStream(),
-      builder: (context, userSnapshot) {
-        if (!userSnapshot.hasData) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-
-        return Scaffold(
-          appBar: AppBar(title: const Text("Chat")),
-          body: Column(
-            children: [
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: _chatService.getMessages(widget.chatId),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    final messages = snapshot.data!.docs;
-
-                    return ListView.builder(
-                      itemCount: messages.length,
-                      itemBuilder: (context, index) {
-                        final data =
-                            messages[index].data() as Map<String, dynamic>;
-
-                        final isMe = data['senderId'] == user!.uid;
-                        final type = data['type'] ?? 'text';
-
-                        return Align(
-                          alignment: isMe
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.all(8),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isMe ? Colors.green : Colors.grey[300],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: buildMessageContent(type, data, isMe),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-
-              // INPUT
-              Padding(
-                padding: const EdgeInsets.all(8),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.add),
-                      onPressed: showOptions,
-                    ),
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        decoration: InputDecoration(
-                          hintText: "Escribe un mensaje...",
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.send),
-                      onPressed: () => sendMessage(userData),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget buildMessageContent(
-      String type, Map<String, dynamic> data, bool isMe) {
+  Widget buildMessageContent(String type, Map<String, dynamic> data) {
     switch (type) {
       case 'image':
         return GestureDetector(
@@ -278,7 +167,9 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               const Icon(Icons.insert_drive_file),
               const SizedBox(width: 8),
-              Text(data['fileName'] ?? "Archivo"),
+              Expanded(
+                child: Text(data['fileName'] ?? "Archivo"),
+              ),
             ],
           ),
         );
@@ -286,5 +177,114 @@ class _ChatScreenState extends State<ChatScreen> {
       default:
         return Text(data['text'] ?? '');
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text("Usuario no autenticado")),
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: const Text("Chat")),
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _chatService.getMessages(widget.chatId),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text("Error: ${snapshot.error}"),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                var messages = snapshot.data!.docs;
+
+                if (messages.isEmpty) {
+                  return const Center(
+                    child: Text("No hay mensajes aún"),
+                  );
+                }
+
+                messages.sort((a, b) {
+                  final t1 = a['timestamp'];
+                  final t2 = b['timestamp'];
+
+                  if (t1 == null || t2 == null) return 0;
+                  return t2.compareTo(t1);
+                });
+
+                return ListView.builder(
+                  reverse: true,
+                  itemCount: messages.length,
+                  itemBuilder: (context, index) {
+                    final data = messages[index].data() as Map<String, dynamic>;
+
+                    final isMe = data['senderId'] == user!.uid;
+                    final type = data['type'] ?? 'text';
+
+                    return Align(
+                      alignment:
+                          isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      child: Container(
+                        margin: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isMe ? Colors.green : Colors.grey[300],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: buildMessageContent(type, data),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  onPressed: showOptions,
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: InputDecoration(
+                      hintText: "Escribe un mensaje...",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.send),
+                  onPressed: () async {
+                    if (_controller.text.trim().isEmpty) return;
+
+                    await _chatService.sendMessage(
+                      widget.chatId,
+                      _controller.text.trim(),
+                    );
+
+                    _controller.clear();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
