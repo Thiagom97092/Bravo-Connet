@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // 🔥 IMPORTANTE
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import './feed_screen.dart';
 import 'marketplace/marketplace_screen.dart';
@@ -7,6 +8,7 @@ import './chat/chat_list_screen.dart';
 import './cafeterias/cafeterias_screen.dart';
 import './grupos/grupos_screen.dart';
 import './pascualizate/pascualizate_screen.dart';
+import './profile/profile_screen.dart'; // 🔥 IMPORTANTE
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,6 +19,8 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
+
+  final user = FirebaseAuth.instance.currentUser;
 
   final List<Widget> _screens = [
     const FeedScreen(),
@@ -30,9 +34,48 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 🔥 APPBAR AGREGADO
       appBar: AppBar(
         title: const Text("Bravo Connet"),
+
+        // 🔥 FOTO PERFIL IZQUIERDA
+        leading: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('usuarios')
+              .doc(user!.uid)
+              .snapshots(),
+          builder: (context, snapshot) {
+            String? foto;
+
+            if (snapshot.hasData && snapshot.data!.exists) {
+              final data = snapshot.data!.data() as Map<String, dynamic>;
+              foto = data['foto'];
+            }
+
+            return Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ProfileScreen(),
+                    ),
+                  );
+                },
+                child: CircleAvatar(
+                  backgroundColor: Colors.grey[300],
+                  backgroundImage: (foto != null && foto.isNotEmpty)
+                      ? NetworkImage(foto)
+                      : null,
+                  child: (foto == null || foto.isEmpty)
+                      ? const Icon(Icons.person)
+                      : null,
+                ),
+              ),
+            );
+          },
+        ),
+
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -68,9 +111,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-
       body: SafeArea(child: _screens[_currentIndex]),
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         selectedItemColor: Colors.green,

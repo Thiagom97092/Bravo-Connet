@@ -11,20 +11,31 @@ class LoginScreen extends StatelessWidget {
   final AuthService _authService = AuthService();
 
   void login(BuildContext context) async {
-    var user = await _authService.login(
-      emailController.text.trim(),
-      passwordController.text.trim(),
-    );
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("⚠️ Ingresa tu correo y contraseña"),
+        ),
+      );
+      return;
+    }
+
+    var user = await _authService.login(email, password);
 
     if (user != null) {
-      // 🔥 IR DIRECTO AL FEED (MainScreen)
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const MainScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error al iniciar sesión")),
+        const SnackBar(
+          content: Text(
+              "❌ No se pudo iniciar sesión. Verifica tus datos o tu conexión"),
+        ),
       );
     }
   }
@@ -35,42 +46,70 @@ class LoginScreen extends StatelessWidget {
       appBar: AppBar(title: const Text("Bravo Connet")),
       body: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: "Correo",
-                border: OutlineInputBorder(),
+        child: SingleChildScrollView(
+          // 🔥 evita overflow
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+
+              // 🔥 LOGO CIRCULAR
+              CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.grey[200],
+                backgroundImage: const AssetImage('assets/logo.png'),
               ),
-            ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(
-                labelText: "Contraseña",
-                border: OutlineInputBorder(),
+
+              const SizedBox(height: 20),
+
+              // 🔥 TITULO OPCIONAL
+              const Text(
+                "Bienvenido",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => login(context),
-                child: const Text("Iniciar Sesión"),
+
+              const SizedBox(height: 30),
+
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: "Correo institucional",
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => RegisterScreen()),
-                );
-              },
-              child: const Text("Crear cuenta"),
-            ),
-          ],
+              const SizedBox(height: 15),
+
+              TextField(
+                controller: passwordController,
+                decoration: const InputDecoration(
+                  labelText: "Contraseña",
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => login(context),
+                  child: const Text("Iniciar Sesión"),
+                ),
+              ),
+
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => RegisterScreen()),
+                  );
+                },
+                child: const Text("Crear cuenta"),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -11,7 +11,41 @@ class CitasService {
         .snapshots();
   }
 
-  // 🔥 HORAS OCUPADAS (reservadas)
+  // 🔥 MIGRACIÓN AUTOMÁTICA DE NOMBRES
+  Future<void> migrarNombresUsuarios() async {
+    try {
+      final citasSnapshot = await _db.collection('citas').get();
+
+      for (var doc in citasSnapshot.docs) {
+        final data = doc.data();
+
+        if (data['estado'] == 'reservada' && data['usuarioId'] != null) {
+          final usuarioId = data['usuarioId'];
+
+          final userDoc = await _db.collection('users').doc(usuarioId).get();
+
+          if (userDoc.exists) {
+            final nombreReal = userDoc.data()?['nombre'] ?? '';
+
+            // 🔥 Solo actualizar si es diferente
+            if (nombreReal.isNotEmpty && data['usuarioNombre'] != nombreReal) {
+              await _db.collection('citas').doc(doc.id).update({
+                'usuarioNombre': nombreReal,
+              });
+
+              print("Actualizado: ${doc.id}");
+            }
+          }
+        }
+      }
+
+      print("🔥 Migración completada");
+    } catch (e) {
+      print("Error en migración: $e");
+    }
+  }
+
+  // 🔥 HORAS OCUPADAS
   Future<List<String>> getHorasOcupadas(
     String psicologoId,
     String fecha,
@@ -111,7 +145,7 @@ class CitasService {
     }
   }
 
-  // 🔥 CANCELAR CITA (ESTUDIANTE)
+  // 🔥 CANCELAR CITA
   Future<bool> cancelarCita({
     required String psicologoId,
     required String fecha,
@@ -143,7 +177,7 @@ class CitasService {
     }
   }
 
-  // 🔥 AGENDA DEL PSICÓLOGO
+  // 🔥 AGENDA
   Stream<QuerySnapshot> getAgendaPsicologo(String psicologoId) {
     return _db
         .collection('citas')

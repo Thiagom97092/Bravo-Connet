@@ -28,6 +28,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
   String selectedDate = "";
   String selectedHora = "";
   String rol = "";
+  String nombreUsuario = ""; // 🔥 NOMBRE REAL
 
   final List<String> horas = [
     "08:00",
@@ -46,14 +47,30 @@ class _AgendaScreenState extends State<AgendaScreen> {
   @override
   void initState() {
     super.initState();
-    loadUserRole();
+    loadUserData();
   }
 
-  Future<void> loadUserRole() async {
+  // 🔥 CARGAR ROL + NOMBRE
+  Future<void> loadUserData() async {
     final data = await _firestoreService.getUser(user!.uid);
+
     setState(() {
       rol = data?['rol'] ?? '';
+      nombreUsuario = data?['nombre'] ?? 'Usuario';
     });
+  }
+
+  DateTime convertirFechaHora(String fecha, String hora) {
+    final partesFecha = fecha.split('-');
+    final partesHora = hora.split(':');
+
+    return DateTime(
+      int.parse(partesFecha[0]),
+      int.parse(partesFecha[1]),
+      int.parse(partesFecha[2]),
+      int.parse(partesHora[0]),
+      int.parse(partesHora[1]),
+    );
   }
 
   Future<void> pickDate() async {
@@ -74,6 +91,16 @@ class _AgendaScreenState extends State<AgendaScreen> {
   Future<void> habilitarHorario() async {
     if (selectedDate.isEmpty || selectedHora.isEmpty) return;
 
+    final fechaHora = convertirFechaHora(selectedDate, selectedHora);
+
+    if (fechaHora.isBefore(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text("No puedes habilitar horarios en el pasado")),
+      );
+      return;
+    }
+
     final success = await _service.crearDisponibilidad(
       psicologoId: widget.psicologoId,
       psicologoNombre: widget.psicologoNombre,
@@ -83,7 +110,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
 
     if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Horario ya existe")),
+        const SnackBar(content: Text("Ese horario ya existe")),
       );
       return;
     }
@@ -95,12 +122,13 @@ class _AgendaScreenState extends State<AgendaScreen> {
     );
   }
 
+  // 🔥 RESERVAR CON NOMBRE REAL
   Future<void> reservarCita(String fecha, String hora) async {
     final success = await _service.crearCita(
       psicologoId: widget.psicologoId,
       psicologoNombre: widget.psicologoNombre,
       usuarioId: user!.uid,
-      usuarioNombre: user!.email ?? "Usuario",
+      usuarioNombre: nombreUsuario, // 🔥 AQUÍ ESTÁ EL CAMBIO
       fecha: fecha,
       hora: hora,
     );
@@ -182,43 +210,75 @@ class _AgendaScreenState extends State<AgendaScreen> {
                 }
 
                 var citas = snapshot.data!.docs;
+                final ahora = DateTime.now();
 
-                citas.sort((a, b) {
-                  final t1 = a['timestamp'];
-                  final t2 = b['timestamp'];
-                  if (t1 == null || t2 == null) return 0;
-                  return t2.compareTo(t1);
-                });
+                final citasFiltradas = citas.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+
+                  final estado = data['estado'];
+                  final usuarioId = data['usuarioId'];
+                  final fecha = data['fecha'];
+                  final hora = data['hora'];
+
+                  final fechaHora = convertirFechaHora(fecha, hora);
+
+                  if (fechaHora.isBefore(ahora) && estado == 'disponible') {
+                    return false;
+                  }
+
+                  if (esPsicologo) return true;
+
+                  if (estado == 'disponible') return true;
+
+                  if (estado == 'reservada' && usuarioId == user!.uid) {
+                    return true;
+                  }
+
+                  return false;
+                }).toList();
 
                 return ListView.builder(
-                  itemCount: citas.length,
+                  itemCount: citasFiltradas.length,
                   itemBuilder: (context, index) {
-                    final data = citas[index].data() as Map<String, dynamic>;
+                    final data =
+                        citasFiltradas[index].data() as Map<String, dynamic>;
 
                     final estado = data['estado'];
                     final fecha = data['fecha'];
                     final hora = data['hora'];
                     final usuario = data['usuarioNombre'];
+                    final usuarioId = data['usuarioId'];
+
+                    final fechaHora = convertirFechaHora(fecha, hora);
+                    final yaPaso = fechaHora.isBefore(DateTime.now());
 
                     final esDisponible = estado == 'disponible';
-                    final esMia = usuario == user!.email;
+                    final esMia = usuarioId == user!.uid;
 
                     return Card(
                       margin: const EdgeInsets.all(10),
                       child: ListTile(
                         title: Text("$fecha - $hora"),
                         subtitle: Text(
-                          estado == 'reservada'
-                              ? "Reservada por: $usuario"
-                              : "Disponible",
+                          yaPaso
+                              ? "No disponible (hora pasada)"
+                              : estado == 'reservada'
+                                  ? esPsicologo
+                                      ? "Reservada por: $usuario"
+                                      : esMia
+                                          ? "Tu cita"
+                                          : ""
+                                  : "Disponible",
                         ),
-                        tileColor: estado == 'reservada'
-                            ? Colors.red[100]
-                            : Colors.green[100],
-                        onTap: (esEstudiante && esDisponible)
+                        tileColor: yaPaso
+                            ? Colors.grey[300]
+                            : estado == 'reservada'
+                                ? Colors.red[100]
+                                : Colors.green[100],
+                        onTap: (esEstudiante && esDisponible && !yaPaso)
                             ? () => reservarCita(fecha, hora)
                             : null,
-                        trailing: (esEstudiante && esMia)
+                        trailing: (esEstudiante && esMia && !yaPaso)
                             ? IconButton(
                                 icon:
                                     const Icon(Icons.cancel, color: Colors.red),

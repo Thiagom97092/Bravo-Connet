@@ -12,6 +12,16 @@ class FeedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final PostService postService = PostService();
+    final user = FirebaseAuth.instance.currentUser;
+
+    // 🔥 VALIDACIÓN: evita crash cuando el usuario es null
+    if (user == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text("Sesión expirada. Inicia sesión nuevamente"),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F2F5),
@@ -24,52 +34,68 @@ class FeedScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // 🔥 CREAR POST
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CreatePostScreen(),
-                  ),
-                );
-              },
-              child: Container(
+          // 🔥 CREAR POST (foto dinámica)
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('usuarios')
+                .doc(user.uid)
+                .snapshots(),
+            builder: (context, snapshot) {
+              String foto = "";
+
+              if (snapshot.hasData && snapshot.data!.exists) {
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+                foto = data['foto'] ?? "";
+              }
+
+              return Padding(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 6,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.grey[300],
-                      child: const Icon(Icons.person),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        "¿Qué estás pensando?",
-                        style: TextStyle(color: Colors.grey[600]),
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CreatePostScreen(),
                       ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 6,
+                        ),
+                      ],
                     ),
-                    const Icon(Icons.image, color: Colors.green),
-                  ],
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: Colors.grey[300],
+                          backgroundImage:
+                              foto.isNotEmpty ? NetworkImage(foto) : null,
+                          child: foto.isEmpty ? const Icon(Icons.person) : null,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            "¿Qué estás pensando?",
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ),
+                        const Icon(Icons.image, color: Colors.green),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
 
-          // 🔥 FEED
+          // 🔥 LISTA DE POSTS
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: postService.getPosts(),
@@ -84,14 +110,19 @@ class FeedScreen extends StatelessWidget {
                   return const Center(child: Text("No hay publicaciones"));
                 }
 
+                final currentUser = FirebaseAuth.instance.currentUser;
+
+                if (currentUser == null) {
+                  return const Center(child: Text("Sesión expirada"));
+                }
+
                 return ListView.builder(
                   itemCount: posts.length,
                   itemBuilder: (context, index) {
                     var post = posts[index];
                     String postId = post.id;
 
-                    String currentUserId =
-                        FirebaseAuth.instance.currentUser!.uid;
+                    String currentUserId = currentUser.uid;
 
                     Map<String, dynamic> data =
                         post.data() as Map<String, dynamic>;
@@ -188,6 +219,12 @@ class _PostCardState extends State<_PostCard>
     _scale = Tween(begin: 1.0, end: 1.3).animate(_controller);
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   void animateLike() async {
     await _controller.forward();
     await _controller.reverse();
@@ -243,32 +280,11 @@ class _PostCardState extends State<_PostCard>
                 child: Text(widget.contenido),
               ),
             if (widget.imagenPost.isNotEmpty)
-              GestureDetector(
-                onDoubleTap: () {
-                  animateLike();
-                  widget.onLike();
-                },
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Image.network(
-                      widget.imagenPost,
-                      width: double.infinity,
-                      height: 300,
-                      fit: BoxFit.cover,
-                    ),
-                    ScaleTransition(
-                      scale: _scale,
-                      child: Icon(
-                        Icons.favorite,
-                        size: 80,
-                        color: liked
-                            ? Colors.red.withOpacity(0.8)
-                            : Colors.transparent,
-                      ),
-                    ),
-                  ],
-                ),
+              Image.network(
+                widget.imagenPost,
+                width: double.infinity,
+                height: 300,
+                fit: BoxFit.cover,
               ),
             Row(
               children: [

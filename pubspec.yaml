@@ -28,8 +28,11 @@ dependencies:
   # 🔗 ABRIR LINKS
   url_launcher: ^6.2.5
 
-  # 🎥 VIDEO (🔥 AQUÍ ES DONDE VA)
+  # 🎥 VIDEO
   video_player: ^2.8.2
+
+  # 🔥 SPLASH SCREEN
+  flutter_native_splash: ^2.4.0
 
 dev_dependencies:
   flutter_test:
@@ -37,5 +40,28 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
 
+  # 📱 ICONO DE LA APP
+  flutter_launcher_icons: ^0.13.1
+
+# 🔥 CONFIGURACIÓN DEL SPLASH
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/logo.png
+
+  android_12:
+    image: assets/logo.png
+    icon_background_color: "#FFFFFF"
+
+# 📱 CONFIGURACIÓN DEL ICONO
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon.png"
+
 flutter:
   uses-material-design: true
+
+  # 📂 ASSETS
+  assets:
+    - assets/logo.png
+    - assets/icon.png

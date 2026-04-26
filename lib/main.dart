@@ -12,9 +12,17 @@ import 'screens/main_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // 🔥 SOLUCIÓN DEFINITIVA PARA ANDROID (duplicate-app)
+  try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  } catch (e) {
+    // 🔥 Evita crash si ya está inicializado (fallback seguro)
+    debugPrint("Firebase ya estaba inicializado: $e");
+  }
 
   runApp(const BravoConnetApp());
 }
@@ -32,11 +40,12 @@ class BravoConnetApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
 
-        // 🎨 COLORES BASE
-        scaffoldBackgroundColor: const Color(0xFFF5F5F5), // gris claro elegante
+        // 🎨 FONDO
+        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
 
+        // 🎨 COLORES
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF006400), // verde oscuro principal
+          seedColor: const Color(0xFF006400),
           brightness: Brightness.light,
         ),
 
@@ -53,7 +62,7 @@ class BravoConnetApp extends StatelessWidget {
           ),
         ),
 
-        // 🧾 TARJETAS (🔥 AQUÍ SE CORRIGE TU ERROR)
+        // 🧾 TARJETAS
         cardTheme: CardThemeData(
           color: Colors.white,
           elevation: 4,
@@ -64,7 +73,7 @@ class BravoConnetApp extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         ),
 
-        // 🔘 BOTONES ELEVATED
+        // 🔘 BOTONES
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF006400),
@@ -93,7 +102,7 @@ class BravoConnetApp extends StatelessWidget {
           ),
         ),
 
-        // 🔽 BOTTOM NAVBAR
+        // 🔽 NAVBAR
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
           selectedItemColor: Color(0xFF006400),
@@ -108,7 +117,7 @@ class BravoConnetApp extends StatelessWidget {
           color: Color(0xFF006400),
         ),
 
-        // 🔤 TIPOGRAFÍA
+        // 🔤 TEXTO
         textTheme: const TextTheme(
           bodyMedium: TextStyle(color: Colors.black87),
         ),
@@ -121,6 +130,7 @@ class BravoConnetApp extends StatelessWidget {
         '/profile': (context) => const ProfileScreen(),
       },
 
+      // 🔥 CONTROL DE SESIÓN
       home: const AuthWrapper(),
     );
   }
@@ -133,6 +143,7 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final User? user = FirebaseAuth.instance.currentUser;
 
+    // 🔥 SI YA ESTÁ LOGUEADO → VA AL MAIN
     if (user != null) {
       return const MainScreen();
     } else {

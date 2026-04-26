@@ -13,17 +13,35 @@ class RegisterScreen extends StatelessWidget {
   final AuthService _authService = AuthService();
   final FirestoreService _firestoreService = FirestoreService();
 
-  // 🔥 DETECTAR ROL AUTOMÁTICO
-  String detectarRol(String email) {
-    final correo = email.split('@')[0];
+  String? validarCorreo(String email) {
+    if (!email.endsWith("@pascualbravo.edu.co")) {
+      return "Debes usar tu correo institucional (@pascualbravo.edu.co)";
+    }
 
-    final tieneNumeros = RegExp(r'\d').hasMatch(correo);
+    final usuario = email.split('@')[0];
+
+    final tienePunto = usuario.contains('.');
+    final tieneNumeros = RegExp(r'\d').hasMatch(usuario);
+
+    if (!tienePunto) {
+      return "El correo debe contener un punto (.) Ej: nombre.apellido";
+    }
 
     if (tieneNumeros) {
-      return "estudiante";
+      return null;
     } else {
-      return "personal"; // incluye psicólogos/docentes
+      if (RegExp(r'\d').hasMatch(usuario)) {
+        return "El correo de personal no debe contener números";
+      }
+      return null;
     }
+  }
+
+  String detectarRol(String email) {
+    final usuario = email.split('@')[0];
+    final tieneNumeros = RegExp(r'\d').hasMatch(usuario);
+
+    return tieneNumeros ? "estudiante" : "personal";
   }
 
   void register(BuildContext context) async {
@@ -31,18 +49,29 @@ class RegisterScreen extends StatelessWidget {
     final password = passwordController.text.trim();
     final nombre = nombreController.text.trim();
 
-    // 🔥 VALIDACIÓN
     if (email.isEmpty || password.isEmpty || nombre.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Completa todos los campos")),
+        const SnackBar(
+          content:
+              Text("⚠️ Por favor completa todos los campos para continuar"),
+        ),
       );
       return;
     }
 
-    // 🔥 VALIDAR DOMINIO INSTITUCIONAL
-    if (!email.endsWith("@pascualbravo.edu.co")) {
+    final errorCorreo = validarCorreo(email);
+    if (errorCorreo != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Usa tu correo institucional")),
+        SnackBar(content: Text("❌ $errorCorreo")),
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("🔒 La contraseña debe tener mínimo 6 caracteres"),
+        ),
       );
       return;
     }
@@ -53,10 +82,8 @@ class RegisterScreen extends StatelessWidget {
       if (result != null) {
         final user = result['user'];
 
-        // 🔥 DETECTAR ROL
         final rol = detectarRol(email);
 
-        // 🔥 GUARDAR USUARIO
         await _firestoreService.saveUser(
           uid: user.uid,
           email: email,
@@ -64,7 +91,6 @@ class RegisterScreen extends StatelessWidget {
           rol: rol,
         );
 
-        // 🔥 SI ES PERSONAL → CREAR EN PSICÓLOGOS
         if (rol == "personal") {
           await FirebaseFirestore.instance
               .collection('psicologos')
@@ -80,18 +106,34 @@ class RegisterScreen extends StatelessWidget {
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Registrado como $rol ✅")),
+          SnackBar(
+            content: Text(
+                "✅ Registro exitoso como ${rol == "estudiante" ? "Estudiante" : "Personal de apoyo"}"),
+          ),
         );
 
         Navigator.pop(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Error en el registro")),
+          const SnackBar(
+            content:
+                Text("❌ No se pudo completar el registro. Intenta nuevamente"),
+          ),
         );
       }
     } catch (e) {
+      String mensaje = "❌ Error inesperado";
+
+      if (e.toString().contains('email-already-in-use')) {
+        mensaje = "⚠️ Este correo ya está registrado";
+      } else if (e.toString().contains('invalid-email')) {
+        mensaje = "⚠️ El formato del correo no es válido";
+      } else if (e.toString().contains('weak-password')) {
+        mensaje = "⚠️ La contraseña es demasiado débil";
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+        SnackBar(content: Text(mensaje)),
       );
     }
   }
@@ -102,48 +144,69 @@ class RegisterScreen extends StatelessWidget {
       appBar: AppBar(title: const Text("Registro")),
       body: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // 👤 Nombre
-            TextField(
-              controller: nombreController,
-              decoration: const InputDecoration(
-                labelText: "Nombre",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 15),
+        child: SingleChildScrollView(
+          // 🔥 evita overflow
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
 
-            // 📧 Correo
-            TextField(
-              controller: emailController,
-              decoration: const InputDecoration(
-                labelText: "Correo institucional",
-                border: OutlineInputBorder(),
+              // 🔥 LOGO CIRCULAR
+              CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.grey[200],
+                backgroundImage: const AssetImage('assets/logo.png'),
               ),
-            ),
-            const SizedBox(height: 15),
 
-            // 🔒 Contraseña
-            TextField(
-              controller: passwordController,
-              decoration: const InputDecoration(
-                labelText: "Contraseña",
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
-            ),
-            const SizedBox(height: 25),
+              const SizedBox(height: 20),
 
-            // 🔥 BOTÓN
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => register(context),
-                child: const Text("Registrarse"),
+              const Text(
+                "Crear cuenta",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+
+              const SizedBox(height: 30),
+
+              TextField(
+                controller: nombreController,
+                decoration: const InputDecoration(
+                  labelText: "Nombre completo",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 15),
+
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: "Correo institucional",
+                  hintText: "ej: nombre.apellido123@pascualbravo.edu.co",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 15),
+
+              TextField(
+                controller: passwordController,
+                decoration: const InputDecoration(
+                  labelText: "Contraseña",
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 25),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => register(context),
+                  child: const Text("Registrarse"),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

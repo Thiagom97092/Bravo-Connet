@@ -16,9 +16,13 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final StorageService _storageService = StorageService();
-  final User? user = FirebaseAuth.instance.currentUser;
+
+  User? get user => FirebaseAuth.instance.currentUser;
 
   final TextEditingController nombreController = TextEditingController();
+  final TextEditingController passwordActualController =
+      TextEditingController();
+  final TextEditingController nuevaPasswordController = TextEditingController();
 
   File? imageFile;
   String? imageUrl;
@@ -32,6 +36,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> loadUserData() async {
+    if (user == null) return;
+
     var data = await _firestoreService.getUser(user!.uid);
 
     if (data != null) {
@@ -44,10 +50,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  // 📸 GALERÍA
   Future<void> pickFromGallery() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-
     if (picked != null) {
       setState(() {
         imageFile = File(picked.path);
@@ -55,10 +59,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // 📸 CÁMARA
   Future<void> pickFromCamera() async {
     final picked = await ImagePicker().pickImage(source: ImageSource.camera);
-
     if (picked != null) {
       setState(() {
         imageFile = File(picked.path);
@@ -66,59 +68,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // 🔥 OPCIONES
   void showImageOptions() {
     showModalBottomSheet(
       context: context,
-      builder: (_) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo),
-                title: const Text("Elegir de galería"),
-                onTap: () {
-                  Navigator.pop(context);
-                  pickFromGallery();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text("Tomar foto"),
-                onTap: () {
-                  Navigator.pop(context);
-                  pickFromCamera();
-                },
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo),
+              title: const Text("Galería"),
+              onTap: () {
+                Navigator.pop(context);
+                pickFromGallery();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text("Cámara"),
+              onTap: () {
+                Navigator.pop(context);
+                pickFromCamera();
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   Future<void> updateUser() async {
+    if (user == null) return;
+
+    final email = user!.email;
+
+    if (email == null) return;
+
     String? url = imageUrl;
 
     if (imageFile != null) {
       url = await _storageService.uploadImage(imageFile!, user!.uid);
     }
 
-    await _firestoreService.updateUser(
-      uid: user!.uid,
-      nombre: nombreController.text.trim(),
-      foto: url,
-    );
+    bool cambiarPassword = nuevaPasswordController.text.isNotEmpty;
 
-    await loadUserData();
+    if (cambiarPassword) {
+      bool? confirm = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Actualizar contraseña"),
+          content: const Text(
+              "⚠️ Vas a cambiar tu contraseña y deberás iniciar sesión nuevamente."),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text("Cancelar")),
+            TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text("Continuar")),
+          ],
+        ),
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Perfil actualizado")),
-    );
+      if (confirm != true) return;
+    }
+
+    try {
+      await _firestoreService.updateUser(
+        uid: user!.uid,
+        nombre: nombreController.text.trim(),
+        foto: url,
+      );
+
+      if (cambiarPassword) {
+        AuthCredential credential = EmailAuthProvider.credential(
+          email: email,
+          password: passwordActualController.text.trim(),
+        );
+
+        await user!.reauthenticateWithCredential(credential);
+
+        await user!.updatePassword(nuevaPasswordController.text.trim());
+
+        await FirebaseAuth.instance.signOut();
+
+        if (!mounted) return;
+
+        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Perfil actualizado")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    ImageProvider? imageProvider;
+
+    if (imageFile != null) {
+      imageProvider = FileImage(imageFile!);
+    } else if (imageUrl != null && imageUrl!.isNotEmpty) {
+      imageProvider = NetworkImage(imageUrl!);
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text("Perfil")),
       body: isLoading
@@ -127,80 +186,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // 🔥 FOTO PERFIL
-                  Stack(
-                    children: [
-                      GestureDetector(
-                        onTap: showImageOptions,
-                        child: CircleAvatar(
-                          radius: 55,
-                          backgroundColor: Colors.grey[300],
-
-                          // ✅ AQUÍ ESTÁ LA CORRECCIÓN
-                          backgroundImage: imageFile != null
-                              ? FileImage(imageFile!) as ImageProvider
-                              : (imageUrl != null && imageUrl!.isNotEmpty)
-                                  ? NetworkImage(imageUrl!) as ImageProvider
-                                  : null,
-
-                          child: imageFile == null &&
-                                  (imageUrl == null || imageUrl!.isEmpty)
-                              ? const Icon(Icons.person, size: 50)
-                              : null,
-                        ),
-                      ),
-
-                      // 📸 BOTÓN CÁMARA
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: showImageOptions,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: Colors.green,
-                              shape: BoxShape.circle,
-                            ),
-                            padding: const EdgeInsets.all(8),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  GestureDetector(
+                    onTap: showImageOptions,
+                    child: CircleAvatar(
+                      radius: 55,
+                      backgroundImage: imageProvider,
+                      child: imageProvider == null
+                          ? const Icon(Icons.person, size: 50)
+                          : null,
+                    ),
                   ),
-
-                  const SizedBox(height: 25),
-
-                  // 👤 NOMBRE
+                  const SizedBox(height: 20),
+                  TextField(controller: nombreController),
+                  const SizedBox(height: 10),
                   TextField(
-                    controller: nombreController,
-                    decoration: const InputDecoration(
-                      labelText: "Nombre",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person),
-                    ),
+                    controller: passwordActualController,
+                    obscureText: true,
                   ),
-
-                  const SizedBox(height: 25),
-
-                  // 💾 GUARDAR
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: updateUser,
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text(
-                        "Guardar cambios",
-                        style: TextStyle(fontSize: 16),
-                      ),
-                    ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: nuevaPasswordController,
+                    obscureText: true,
                   ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: updateUser,
+                    child: const Text("Guardar cambios"),
+                  )
                 ],
               ),
             ),
